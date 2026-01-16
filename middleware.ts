@@ -1,11 +1,9 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
+// Only protect routes that require authentication
+// Guests can browse: /, /browse, /movie, /tv, /franchise, /watch (but will see sign-in message)
+// But cannot access: /my-list, /import, /settings
 const isProtectedRoute = createRouteMatcher([
-  '/',
-  '/browse(.*)',
-  '/movie(.*)',
-  '/tv(.*)',
-  '/watch(.*)',
   '/my-list(.*)',
   '/import(.*)',
   '/settings(.*)',

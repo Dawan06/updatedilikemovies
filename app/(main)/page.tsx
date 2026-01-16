@@ -1,10 +1,19 @@
 import { tmdbClient } from '@/lib/tmdb/client';
+import dynamic from 'next/dynamic';
 import UserHeroBanner from '@/components/hero-banner/UserHeroBanner';
 import MovieCard from '@/components/movie-card/MovieCard';
-import ContentCarousel from '@/components/carousel/ContentCarousel';
-import Top10Carousel from '@/components/carousel/Top10Carousel';
-import MyListCarousel from '@/components/carousel/MyListCarousel';
 import { Movie, TVShow } from '@/types';
+
+// Lazy load carousels below the fold for better initial load performance
+const ContentCarousel = dynamic(() => import('@/components/carousel/ContentCarousel'), {
+  loading: () => <div className="h-64 animate-pulse bg-netflix-dark rounded-lg" />,
+});
+const Top10Carousel = dynamic(() => import('@/components/carousel/Top10Carousel'), {
+  loading: () => <div className="h-80 animate-pulse bg-netflix-dark rounded-lg" />,
+});
+const MyListCarousel = dynamic(() => import('@/components/carousel/MyListCarousel'), {
+  loading: () => <div className="h-64 animate-pulse bg-netflix-dark rounded-lg" />,
+});
 
 // Cache for 1 hour - page is pre-rendered
 export const revalidate = 3600;

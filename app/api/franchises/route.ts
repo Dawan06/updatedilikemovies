@@ -13,6 +13,9 @@ export async function GET(request: NextRequest) {
   try {
     // Get watchlist from query params (client will send it)
     const watchlistParam = request.nextUrl.searchParams.get('watchlist');
+    const pageParam = request.nextUrl.searchParams.get('page');
+    const page = pageParam ? parseInt(pageParam, 10) : 1;
+    const itemsPerPage = 20;
     
     let watchlist: WatchlistItem[] = [];
     if (watchlistParam) {
@@ -24,11 +27,31 @@ export async function GET(request: NextRequest) {
     }
 
     const franchiseData = await getFranchiseCards(watchlist);
+    
+    // Combine all franchises for pagination
+    const allFranchises = [...franchiseData.userFranchises, ...franchiseData.popularFranchises];
+    const totalCount = allFranchises.length;
+    const totalPages = Math.ceil(totalCount / itemsPerPage);
+    
+    // Paginate results
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedFranchises = allFranchises.slice(startIndex, endIndex);
 
     return NextResponse.json({
-      userFranchises: franchiseData.userFranchises,
-      popularFranchises: franchiseData.popularFranchises,
-      allFranchises: franchiseData.allFranchises,
+      franchises: paginatedFranchises,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalCount,
+        itemsPerPage,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+      // Keep separate arrays for backward compatibility (first page only)
+      userFranchises: page === 1 ? franchiseData.userFranchises : [],
+      popularFranchises: page === 1 ? franchiseData.popularFranchises : [],
+      allFranchises: page === 1 ? franchiseData.allFranchises : [],
     });
   } catch (error) {
     console.error('Error fetching franchises:', error);
@@ -43,13 +66,35 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const watchlist: WatchlistItem[] = body.watchlist || [];
+    const page = body.page || 1;
+    const itemsPerPage = 20;
 
     const franchiseData = await getFranchiseCards(watchlist);
+    
+    // Combine all franchises for pagination
+    const allFranchises = [...franchiseData.userFranchises, ...franchiseData.popularFranchises];
+    const totalCount = allFranchises.length;
+    const totalPages = Math.ceil(totalCount / itemsPerPage);
+    
+    // Paginate results
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedFranchises = allFranchises.slice(startIndex, endIndex);
 
     return NextResponse.json({
-      userFranchises: franchiseData.userFranchises,
-      popularFranchises: franchiseData.popularFranchises,
-      allFranchises: franchiseData.allFranchises,
+      franchises: paginatedFranchises,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalCount,
+        itemsPerPage,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+      // Keep separate arrays for backward compatibility (first page only)
+      userFranchises: page === 1 ? franchiseData.userFranchises : [],
+      popularFranchises: page === 1 ? franchiseData.popularFranchises : [],
+      allFranchises: page === 1 ? franchiseData.allFranchises : [],
     });
   } catch (error) {
     console.error('Error fetching franchises:', error);

@@ -1,6 +1,7 @@
 import { tmdbClient } from '@/lib/tmdb/client';
 import { vidsrcClient } from '@/lib/vidsrc/vidsrc-client';
 import VideoPlayerWrapper from '@/components/video-player/VideoPlayerWrapper';
+import WatchPageClient from './WatchPageClient';
 import { Episode } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -48,17 +49,15 @@ export default async function WatchPage({
   }
 
   return (
-    <div className="fixed inset-0 bg-black z-50">
-      <VideoPlayerWrapper
-        sources={sources}
-        title={title}
-        tmdbId={tmdbId}
-        mediaType={params.type}
-        season={season}
-        episode={episode}
-        episodes={episodes}
-        totalSeasons={totalSeasons}
-      />
-    </div>
+    <WatchPageClient
+      sources={sources}
+      title={title}
+      tmdbId={tmdbId}
+      mediaType={params.type}
+      season={season}
+      episode={episode}
+      episodes={episodes}
+      totalSeasons={totalSeasons}
+    />
   );
 }

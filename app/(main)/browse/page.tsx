@@ -1,5 +1,6 @@
 import { tmdbClient } from '@/lib/tmdb/client';
 import MovieCard from '@/components/movie-card/MovieCard';
+import SearchPagination from './SearchPagination';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -23,24 +24,44 @@ function BrowseContent({ searchQuery, page }: { searchQuery?: string; page: numb
 
 async function SearchResults({ query, page }: { query: string; page: number }) {
   const results = await tmdbClient.searchMulti(query, page);
+  const totalPages = results.total_pages || 1;
+  const totalResults = results.total_results || 0;
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-white mb-6">
-        Search Results for &quot;{query}&quot;
-      </h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-white">
+          Search Results for &quot;{query}&quot;
+        </h1>
+        {totalResults > 0 && (
+          <span className="text-gray-400 text-sm">
+            {totalResults} {totalResults === 1 ? 'result' : 'results'}
+          </span>
+        )}
+      </div>
       {results.results.length === 0 ? (
         <p className="text-gray-400 text-center py-12">No results found.</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {results.results.map((item) => (
-            <MovieCard
-              key={`${item.media_type}-${item.id}`}
-              item={item}
-              mediaType={item.media_type}
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mb-8">
+            {results.results.map((item) => (
+              <MovieCard
+                key={`${item.media_type}-${item.id}`}
+                item={item}
+                mediaType={item.media_type}
+              />
+            ))}
+          </div>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <SearchPagination 
+              currentPage={page} 
+              totalPages={totalPages} 
+              query={query}
             />
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );

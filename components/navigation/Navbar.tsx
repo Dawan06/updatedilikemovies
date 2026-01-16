@@ -5,13 +5,13 @@ import Image from 'next/image';
 import { useUser, SignOutButton } from '@clerk/nextjs';
 import { 
   Search, Home, Bookmark, Film, LogOut, 
-  Upload, Menu, X, ChevronDown
+  Upload, Menu, X, ChevronDown, LogIn
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 
 export default function Navbar() {
-  const { user } = useUser();
+  const { user, isSignedIn, isLoaded } = useUser();
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -55,7 +55,7 @@ export default function Navbar() {
 
   const navLinks = [
     { href: '/', label: 'Home', icon: Home },
-    { href: '/my-list', label: 'My List', icon: Bookmark },
+    { href: '/my-list', label: 'My List', icon: Bookmark, requiresAuth: true },
     { href: '/franchise', label: 'Franchise', icon: Film },
   ];
 
@@ -100,6 +100,10 @@ export default function Navbar() {
                 {navLinks.map((link) => {
                   const Icon = link.icon;
                   const active = isActive(link.href);
+                  const showLink = !link.requiresAuth || isSignedIn;
+                  
+                  if (!showLink) return null;
+                  
                   return (
                     <Link
                       key={link.href}
@@ -175,67 +179,81 @@ export default function Navbar() {
                 )}
               </div>
 
-              {/* Profile Dropdown */}
-              <div ref={profileRef} className="relative">
-                <button
-                  onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="flex items-center gap-2 p-1 rounded-lg transition-colors hover:bg-white/10"
-                >
-                  {user?.imageUrl ? (
-                    <Image
-                      src={user.imageUrl}
-                      alt={user.firstName || 'User'}
-                      width={32}
-                      height={32}
-                      className="w-8 h-8 rounded-md object-cover"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-md bg-gradient-red flex items-center justify-center text-white font-semibold text-sm">
-                      {user?.firstName?.[0] || user?.emailAddresses[0]?.emailAddress[0].toUpperCase() || 'U'}
-                    </div>
-                  )}
-                  <ChevronDown className={`w-4 h-4 text-gray-300 transition-transform duration-200 hidden md:block ${
-                    isProfileOpen ? 'rotate-180' : ''
-                  }`} />
-                </button>
-
-                {/* Dropdown Menu */}
-                {isProfileOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-56 glass rounded-lg shadow-xl overflow-hidden animate-fade-in-down">
-                    {/* User Info */}
-                    <div className="px-4 py-3 border-b border-white/10">
-                      <p className="text-white font-medium truncate">
-                        {user?.firstName || 'User'}
-                      </p>
-                      <p className="text-gray-400 text-sm truncate">
-                        {user?.emailAddresses[0]?.emailAddress}
-                      </p>
-                    </div>
-
-                    {/* Menu Items */}
-                    <div className="py-2">
-                      <Link
-                        href="/import"
-                        onClick={() => setIsProfileOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+              {/* Profile Dropdown or Sign In Button */}
+              {isLoaded && (
+                <>
+                  {isSignedIn ? (
+                    <div ref={profileRef} className="relative">
+                      <button
+                        onClick={() => setIsProfileOpen(!isProfileOpen)}
+                        className="flex items-center gap-2 p-1 rounded-lg transition-colors hover:bg-white/10"
                       >
-                        <Upload className="w-4 h-4" />
-                        <span className="text-sm">Import Watchlist</span>
-                      </Link>
-                    </div>
+                        {user?.imageUrl ? (
+                          <Image
+                            src={user.imageUrl}
+                            alt={user.firstName || 'User'}
+                            width={32}
+                            height={32}
+                            className="w-8 h-8 rounded-md object-cover"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-md bg-gradient-red flex items-center justify-center text-white font-semibold text-sm">
+                            {user?.firstName?.[0] || user?.emailAddresses[0]?.emailAddress[0].toUpperCase() || 'U'}
+                          </div>
+                        )}
+                        <ChevronDown className={`w-4 h-4 text-gray-300 transition-transform duration-200 hidden md:block ${
+                          isProfileOpen ? 'rotate-180' : ''
+                        }`} />
+                      </button>
 
-                    {/* Sign Out */}
-                    <div className="py-2 border-t border-white/10">
-                      <SignOutButton>
-                        <button className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:text-white hover:bg-white/10 transition-colors">
-                          <LogOut className="w-4 h-4" />
-                          <span className="text-sm">Sign Out</span>
-                        </button>
-                      </SignOutButton>
+                      {/* Dropdown Menu */}
+                      {isProfileOpen && (
+                        <div className="absolute right-0 top-full mt-2 w-56 glass rounded-lg shadow-xl overflow-hidden animate-fade-in-down">
+                          {/* User Info */}
+                          <div className="px-4 py-3 border-b border-white/10">
+                            <p className="text-white font-medium truncate">
+                              {user?.firstName || 'User'}
+                            </p>
+                            <p className="text-gray-400 text-sm truncate">
+                              {user?.emailAddresses[0]?.emailAddress}
+                            </p>
+                          </div>
+
+                          {/* Menu Items */}
+                          <div className="py-2">
+                            <Link
+                              href="/import"
+                              onClick={() => setIsProfileOpen(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                            >
+                              <Upload className="w-4 h-4" />
+                              <span className="text-sm">Import Watchlist</span>
+                            </Link>
+                          </div>
+
+                          {/* Sign Out */}
+                          <div className="py-2 border-t border-white/10">
+                            <SignOutButton>
+                              <button className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:text-white hover:bg-white/10 transition-colors">
+                                <LogOut className="w-4 h-4" />
+                                <span className="text-sm">Sign Out</span>
+                              </button>
+                            </SignOutButton>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    <Link
+                      href="/sign-in"
+                      className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-md font-medium text-sm transition-colors"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      <span className="hidden sm:inline">Sign In</span>
+                    </Link>
+                  )}
+                </>
+              )}
 
               {/* Mobile Menu Toggle */}
               <button
@@ -265,6 +283,10 @@ export default function Navbar() {
               {navLinks.map((link, index) => {
                 const Icon = link.icon;
                 const active = isActive(link.href);
+                const showLink = !link.requiresAuth || isSignedIn;
+                
+                if (!showLink) return null;
+                
                 return (
                   <Link
                     key={link.href}
@@ -281,6 +303,15 @@ export default function Navbar() {
                   </Link>
                 );
               })}
+              {!isSignedIn && (
+                <Link
+                  href="/sign-in"
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg mb-1 bg-primary text-white hover:bg-primary-dark transition-colors mt-4"
+                >
+                  <LogIn className="w-5 h-5" />
+                  <span className="font-medium">Sign In</span>
+                </Link>
+              )}
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { tmdbClient } from '@/lib/tmdb/client';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 3600; // Cache for 1 hour
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;

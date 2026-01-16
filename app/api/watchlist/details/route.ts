@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { tmdbClient } from '@/lib/tmdb/client';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 300; // Cache for 5 minutes (TMDB data is stable, but user data changes)
 
 interface WatchlistItem {
   tmdb_id: number;

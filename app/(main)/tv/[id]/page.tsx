@@ -1,19 +1,28 @@
 import { tmdbClient } from '@/lib/tmdb/client';
 import { TVShowDetails, SeasonDetails } from '@/types';
+import dynamic from 'next/dynamic';
 import SeasonSelector from './SeasonSelector';
-import PhotoGallery from '@/components/detail/PhotoGallery';
-import SimilarContent from '@/components/detail/SimilarContent';
 import CastGrid from '@/components/detail/CastGrid';
 import DetailSidebar from '@/components/detail/DetailSidebar';
 import ExpandableOverview from '@/components/detail/ExpandableOverview';
-import ReviewsSection from '@/components/detail/ReviewsSection';
 import HeroSection from '@/components/detail/HeroSection';
+
+// Lazy load below-the-fold components
+const PhotoGallery = dynamic(() => import('@/components/detail/PhotoGallery'), {
+  loading: () => <div className="h-64 animate-pulse bg-netflix-dark rounded-lg" />,
+});
+const SimilarContent = dynamic(() => import('@/components/detail/SimilarContent'), {
+  loading: () => <div className="h-64 animate-pulse bg-netflix-dark rounded-lg" />,
+});
+const ReviewsSection = dynamic(() => import('@/components/detail/ReviewsSection'), {
+  loading: () => <div className="h-48 animate-pulse bg-netflix-dark rounded-lg" />,
+});
 
 export const revalidate = 3600;
 
 async function getSeasonData(tvId: number, seasons: TVShowDetails['seasons']): Promise<SeasonDetails[]> {
   const validSeasons = seasons.filter(s => s.season_number > 0);
-  const seasonPromises = validSeasons.slice(0, 3).map(s => 
+  const seasonPromises = validSeasons.map(s => 
     tmdbClient.getTVSeasonDetails(tvId, s.season_number).catch(() => null)
   );
   const results = await Promise.all(seasonPromises);

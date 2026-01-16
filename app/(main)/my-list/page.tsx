@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { 
   Bookmark, Plus, Upload, Film, Tv, Loader2, Search, X, 
-  Pencil, Trash2, CheckSquare, SortAsc, Calendar, Type
+  Pencil, Trash2, CheckSquare, SortAsc, Calendar, Type, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import MovieCard from '@/components/movie-card/MovieCard';
 import { getWatchlist, removeFromWatchlist, removeManyFromWatchlist, WatchlistItem } from '@/lib/watchlist-storage';
@@ -35,6 +35,10 @@ export default function MyListPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
   const [sortBy, setSortBy] = useState<SortType>('added');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
   
   // Edit and select mode state
   const [editMode, setEditMode] = useState(false);
@@ -111,6 +115,17 @@ export default function MyListPage() {
     
     return result;
   }, [items, filter, searchQuery, sortBy]);
+
+  // Paginate filtered items
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedItems = filteredItems.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, searchQuery, sortBy]);
 
   const handleDelete = (id: number, type: 'movie' | 'tv') => {
     removeFromWatchlist(id, type);
@@ -387,29 +402,99 @@ export default function MyListPage() {
       )}
 
       {/* Results info */}
-      {(searchQuery || filter !== 'all') && (
-        <p className="text-gray-400 text-sm mb-4">
-          Showing {filteredItems.length} of {items.length} items
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-gray-400 text-sm">
+          {(searchQuery || filter !== 'all') 
+            ? `Showing ${filteredItems.length} of ${items.length} items`
+            : `${items.length} ${items.length === 1 ? 'item' : 'items'}`
+          }
         </p>
-      )}
+        {filteredItems.length > itemsPerPage && (
+          <p className="text-gray-400 text-sm">
+            Page {currentPage} of {totalPages}
+          </p>
+        )}
+      </div>
       
       {/* Grid */}
-      {filteredItems.length > 0 ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 md:gap-4">
-          {filteredItems.map((item) => (
-            <MovieCard
-              key={`${item.media_type}-${item.tmdb_id}`}
-              item={item.details}
-              mediaType={item.media_type}
-              enableHover={!editMode && !selectMode}
-              showCheckbox={selectMode}
-              isSelected={selectedItems.has(`${item.tmdb_id}-${item.media_type}`)}
-              onSelect={handleSelect}
-              showDeleteButton={editMode}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
+      {paginatedItems.length > 0 ? (
+        <>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 md:gap-4">
+            {paginatedItems.map((item) => (
+              <MovieCard
+                key={`${item.media_type}-${item.tmdb_id}`}
+                item={item.details}
+                mediaType={item.media_type}
+                enableHover={!editMode && !selectMode}
+                showCheckbox={selectMode}
+                isSelected={selectedItems.has(`${item.tmdb_id}-${item.media_type}`)}
+                onSelect={handleSelect}
+                showDeleteButton={editMode}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 mt-8">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
+                  currentPage > 1
+                    ? 'bg-white/10 text-white hover:bg-white/20'
+                    : 'bg-white/5 text-white/30 cursor-not-allowed'
+                }`}
+              >
+                <ChevronLeft className="w-5 h-5" />
+                Previous
+              </button>
+
+              <div className="flex items-center gap-2">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-10 h-10 rounded-md font-medium transition-colors ${
+                        pageNum === currentPage
+                          ? 'bg-primary text-white'
+                          : 'bg-white/10 text-white hover:bg-white/20'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
+                  currentPage < totalPages
+                    ? 'bg-white/10 text-white hover:bg-white/20'
+                    : 'bg-white/5 text-white/30 cursor-not-allowed'
+                }`}
+              >
+                Next
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+        </>
       ) : (
         <div className="text-center py-16">
           <Search className="w-12 h-12 mx-auto mb-4 text-gray-600" />

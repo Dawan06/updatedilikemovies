@@ -31,6 +31,7 @@ export default function FranchiseCard({ franchise }: FranchiseCardProps) {
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-110"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          loading="lazy"
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-netflix-gray to-netflix-dark" />
@@ -88,6 +89,7 @@ export default function FranchiseCard({ franchise }: FranchiseCardProps) {
             fill
             className="object-cover"
             sizes="64px"
+            loading="lazy"
           />
         </div>
       )}

@@ -1,11 +1,20 @@
 import { tmdbClient } from '@/lib/tmdb/client';
-import PhotoGallery from '@/components/detail/PhotoGallery';
-import SimilarContent from '@/components/detail/SimilarContent';
+import dynamic from 'next/dynamic';
 import CastGrid from '@/components/detail/CastGrid';
 import DetailSidebar from '@/components/detail/DetailSidebar';
 import ExpandableOverview from '@/components/detail/ExpandableOverview';
-import ReviewsSection from '@/components/detail/ReviewsSection';
 import HeroSection from '@/components/detail/HeroSection';
+
+// Lazy load below-the-fold components
+const PhotoGallery = dynamic(() => import('@/components/detail/PhotoGallery'), {
+  loading: () => <div className="h-64 animate-pulse bg-netflix-dark rounded-lg" />,
+});
+const SimilarContent = dynamic(() => import('@/components/detail/SimilarContent'), {
+  loading: () => <div className="h-64 animate-pulse bg-netflix-dark rounded-lg" />,
+});
+const ReviewsSection = dynamic(() => import('@/components/detail/ReviewsSection'), {
+  loading: () => <div className="h-48 animate-pulse bg-netflix-dark rounded-lg" />,
+});
 
 export const revalidate = 3600;
 

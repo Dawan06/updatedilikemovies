@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, Check, Loader2 } from 'lucide-react';
+import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 import { addToWatchlist, removeFromWatchlist, isInWatchlist } from '@/lib/watchlist-storage';
 
 interface AddToListButtonProps {
@@ -10,16 +12,25 @@ interface AddToListButtonProps {
 }
 
 export default function AddToListButton({ tmdbId, mediaType }: AddToListButtonProps) {
+  const { isSignedIn } = useUser();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [added, setAdded] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setAdded(isInWatchlist(tmdbId, mediaType));
+    if (isSignedIn) {
+      setAdded(isInWatchlist(tmdbId, mediaType));
+    }
     setMounted(true);
-  }, [tmdbId, mediaType]);
+  }, [tmdbId, mediaType, isSignedIn]);
 
   const handleToggle = () => {
+    if (!isSignedIn) {
+      router.push('/sign-in');
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -48,18 +59,27 @@ export default function AddToListButton({ tmdbId, mediaType }: AddToListButtonPr
     );
   }
 
+  const isGuest = !isSignedIn;
+
   return (
     <button
       onClick={handleToggle}
       disabled={loading}
+      title={isGuest ? 'Sign in to add to your list' : undefined}
       className={`flex items-center gap-2 transition-colors ${
-        added ? 'text-green-400 hover:text-white' : 'text-white/80 hover:text-white'
+        isGuest 
+          ? 'text-white/50 hover:text-white/70 cursor-pointer' 
+          : added 
+            ? 'text-green-400 hover:text-white' 
+            : 'text-white/80 hover:text-white'
       }`}
     >
       <div className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors ${
-        added 
-          ? 'border-green-400 bg-green-400/10' 
-          : 'border-white/40 hover:border-white/60'
+        isGuest
+          ? 'border-white/20 bg-white/5'
+          : added 
+            ? 'border-green-400 bg-green-400/10' 
+            : 'border-white/40 hover:border-white/60'
       }`}>
         {loading ? (
           <Loader2 className="w-4 h-4 animate-spin" />
@@ -69,7 +89,9 @@ export default function AddToListButton({ tmdbId, mediaType }: AddToListButtonPr
           <Plus className="w-4 h-4" />
         )}
       </div>
-      <span className="text-sm font-medium">{added ? 'In My List' : 'My List'}</span>
+      <span className="text-sm font-medium">
+        {isGuest ? 'Sign in to add' : added ? 'In My List' : 'My List'}
+      </span>
     </button>
   );
 }

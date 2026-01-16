@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Plus, Check, Loader2 } from 'lucide-react';
 
@@ -17,10 +19,17 @@ export default function WatchlistButton({
   isInWatchlist,
   currentStatus,
 }: WatchlistButtonProps) {
+  const { isSignedIn } = useUser();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [inWatchlist, setInWatchlist] = useState(isInWatchlist);
 
   const handleClick = async () => {
+    if (!isSignedIn) {
+      router.push('/sign-in');
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await fetch('/api/watchlist', {
@@ -44,12 +53,15 @@ export default function WatchlistButton({
     }
   };
 
+  const isGuest = !isSignedIn;
+
   return (
     <Button
       variant={inWatchlist ? 'default' : 'outline'}
       size="lg"
       onClick={handleClick}
       disabled={loading}
+      title={isGuest ? 'Sign in to add to your watchlist' : undefined}
       className="flex items-center space-x-2"
     >
       {loading ? (
@@ -62,7 +74,7 @@ export default function WatchlistButton({
       ) : (
         <>
           <Plus className="w-5 h-5" />
-          <span>Add to Watchlist</span>
+          <span>{isGuest ? 'Sign in to Add' : 'Add to Watchlist'}</span>
         </>
       )}
     </Button>
