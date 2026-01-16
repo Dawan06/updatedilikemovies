@@ -90,8 +90,8 @@ class TMDBClient {
     });
   }
 
-  async searchMulti(query: string, page: number = 1): Promise<{ results: MediaItem[]; total_pages: number }> {
-    return this.fetch<{ results: MediaItem[]; total_pages: number }>('/search/multi', {
+  async searchMulti(query: string, page: number = 1): Promise<{ results: MediaItem[]; total_pages: number; total_results: number }> {
+    return this.fetch<{ results: MediaItem[]; total_pages: number; total_results: number }>('/search/multi', {
       query,
       page: page.toString(),
     });
