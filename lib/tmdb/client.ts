@@ -108,11 +108,11 @@ class TMDBClient {
 
   // Discover
   async discoverMovies(params: Record<string, string> = {}) {
-    return this.fetch<{ results: Movie[]; total_pages: number }>('/discover/movie', params);
+    return this.fetch<{ results: Movie[]; total_pages: number; total_results: number }>('/discover/movie', params);
   }
 
   async discoverTV(params: Record<string, string> = {}) {
-    return this.fetch<{ results: TVShow[]; total_pages: number }>('/discover/tv', params);
+    return this.fetch<{ results: TVShow[]; total_pages: number; total_results: number }>('/discover/tv', params);
   }
 
   // Find by external ID (IMDb, etc.)
