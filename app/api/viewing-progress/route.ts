@@ -32,8 +32,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error updating viewing progress:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to update progress' },
+      { 
+        error: 'Failed to update viewing progress',
+        details: errorMessage,
+      },
       { status: 500 }
     );
   }
@@ -71,8 +75,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ progress });
   } catch (error) {
     console.error('Error fetching viewing progress:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to fetch progress' },
+      { 
+        error: 'Failed to fetch viewing progress',
+        details: errorMessage,
+      },
       { status: 500 }
     );
   }

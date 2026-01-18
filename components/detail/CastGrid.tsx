@@ -93,6 +93,7 @@ export default function CastGrid({ cast }: CastGridProps) {
                   alt={person.name}
                   fill
                   className="object-cover transition-transform duration-300"
+                  sizes="(max-width: 768px) 128px, 160px"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">

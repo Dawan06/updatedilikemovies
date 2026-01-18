@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Play, Clock, Star, ChevronDown, Film, ChevronUp } from 'lucide-react';
 import { SeasonDetails, Episode } from '@/types';
+import PrePlayModal from '@/components/PrePlayModal';
 
 interface SeasonSelectorProps {
   tvId: number;
@@ -18,6 +19,8 @@ export default function SeasonSelector({ tvId, showName, seasons }: SeasonSelect
   const [selectedSeason, setSelectedSeason] = useState(0);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [showAllEpisodes, setShowAllEpisodes] = useState(false);
+  const [showPrePlayModal, setShowPrePlayModal] = useState(false);
+  const [pendingWatchUrl, setPendingWatchUrl] = useState<string | null>(null);
 
   if (!seasons.length) {
     return (
@@ -97,6 +100,15 @@ export default function SeasonSelector({ tvId, showName, seasons }: SeasonSelect
               tvId={tvId}
               showName={showName}
               index={index}
+              onEpisodeClick={(url) => {
+                const dismissed = localStorage.getItem('prePlayTipsDismissed');
+                if (dismissed) {
+                  window.location.href = url;
+                } else {
+                  setPendingWatchUrl(url);
+                  setShowPrePlayModal(true);
+                }
+              }}
             />
           ))}
         </div>
@@ -121,6 +133,16 @@ export default function SeasonSelector({ tvId, showName, seasons }: SeasonSelect
           )}
         </button>
       )}
+
+      {/* Pre-Play Modal */}
+      {pendingWatchUrl && (
+        <PrePlayModal
+          isOpen={showPrePlayModal}
+          onClose={() => setShowPrePlayModal(false)}
+          watchUrl={pendingWatchUrl}
+          title={showName}
+        />
+      )}
     </div>
   );
 }
@@ -129,17 +151,24 @@ function EpisodeCard({
   episode, 
   tvId, 
   showName,
-  index 
+  index,
+  onEpisodeClick
 }: { 
   episode: Episode; 
   tvId: number; 
   showName: string;
   index: number;
+  onEpisodeClick: (url: string) => void;
 }) {
+  const watchUrl = `/watch/tv/${tvId}?season=${episode.season_number}&episode=${episode.episode_number}`;
+
   return (
-    <Link
-      href={`/watch/tv/${tvId}?season=${episode.season_number}&episode=${episode.episode_number}`}
-      className="group flex gap-4 bg-netflix-dark/50 hover:bg-netflix-dark rounded-xl overflow-hidden transition-all duration-300 hover:ring-1 hover:ring-primary/50 hover:shadow-lg"
+    <button
+      onClick={(e) => {
+        e.preventDefault();
+        onEpisodeClick(watchUrl);
+      }}
+      className="group flex gap-4 bg-netflix-dark/50 hover:bg-netflix-dark rounded-xl overflow-hidden transition-all duration-300 hover:ring-1 hover:ring-primary/50 hover:shadow-lg w-full text-left"
       style={{ animationDelay: `${index * 50}ms` }}
     >
       {/* Thumbnail */}
@@ -150,6 +179,7 @@ function EpisodeCard({
             alt={episode.name}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="(max-width: 768px) 160px, 208px"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-600">
@@ -198,6 +228,6 @@ function EpisodeCard({
           <p className="text-sm text-gray-400 line-clamp-2">{episode.overview}</p>
         )}
       </div>
-    </Link>
+    </button>
   );
 }

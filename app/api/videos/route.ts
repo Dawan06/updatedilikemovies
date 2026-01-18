@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { tmdbClient } from '@/lib/tmdb/client';
 
-export const dynamic = 'force-dynamic';
+// Allow ISR for TMDB data - no need to force dynamic
 export const revalidate = 3600; // Cache for 1 hour
+
+const CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+};
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -23,7 +27,7 @@ export async function GET(request: NextRequest) {
       ? await tmdbClient.getTVVideos(tmdbId)
       : await tmdbClient.getMovieVideos(tmdbId);
 
-    return NextResponse.json(videos);
+    return NextResponse.json(videos, { headers: CACHE_HEADERS });
   } catch (error) {
     console.error('Error fetching videos:', error);
     return NextResponse.json(

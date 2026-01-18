@@ -1,11 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getWatchlist, WatchlistItem } from '@/lib/watchlist-storage';
+import { useWatchlist } from '@/lib/hooks/useWatchlist';
 import ContentCarousel from './ContentCarousel';
 import MovieCard from '@/components/movie-card/MovieCard';
+import { WatchlistItem } from '@/types';
 
-interface ItemWithDetails extends WatchlistItem {
+interface ItemWithDetails {
+  tmdb_id: number;
+  media_type: 'movie' | 'tv';
+  added_at: string;
   details: {
     id: number;
     title?: string;
@@ -20,26 +24,31 @@ interface ItemWithDetails extends WatchlistItem {
 }
 
 export default function MyListCarousel() {
+  const { items: watchlistItems, loading: watchlistLoading } = useWatchlist();
   const [items, setItems] = useState<ItemWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadMyList() {
-      try {
-        const watchlist = getWatchlist();
-        
-        // Only show if 3 or more items
-        if (watchlist.length < 3) {
-          setItems([]);
-          setLoading(false);
-          return;
-        }
+      // Only show if 3 or more items
+      if (watchlistItems.length < 3) {
+        setItems([]);
+        setLoading(false);
+        return;
+      }
 
-        // Fetch details for items
+      try {
+        // Convert WatchlistItem to format expected by details API
+        const itemsForDetails = watchlistItems.map(item => ({
+          tmdb_id: item.tmdb_id,
+          media_type: item.media_type,
+        }));
+
+        // Fetch details for items (cached by API)
         const response = await fetch('/api/watchlist/details', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items: watchlist }),
+          body: JSON.stringify({ items: itemsForDetails }),
         });
 
         if (response.ok) {
@@ -53,11 +62,17 @@ export default function MyListCarousel() {
       }
     }
 
-    loadMyList();
-  }, []);
+    // Don't wait for watchlist loading - start fetching details immediately if we have items
+    if (watchlistItems.length > 0) {
+      loadMyList();
+    } else if (!watchlistLoading) {
+      // Only set loading false if watchlist is done loading and empty
+      setLoading(false);
+    }
+  }, [watchlistItems, watchlistLoading]);
 
   // Don't render anything if loading or not enough items
-  if (loading || items.length < 3) {
+  if ((loading && watchlistItems.length === 0) || items.length < 3) {
     return null;
   }
 

@@ -1,8 +1,9 @@
-import { createServerClient } from './server';
+import { createServiceClient } from './server';
 import { WatchlistItem, ViewingHistory, UserProfile } from '@/types';
+import { tmdbClient } from '@/lib/tmdb/client';
 
 export async function getOrCreateUserProfile(userId: string, email: string) {
-  const supabase = createServerClient();
+  const supabase = createServiceClient();
   
   // Check if profile exists
   const { data: existingProfile } = await supabase
@@ -34,7 +35,9 @@ export async function getOrCreateUserProfile(userId: string, email: string) {
 }
 
 export async function getUserWatchlist(userId: string) {
-  const supabase = createServerClient();
+  const supabase = createServiceClient();
+  
+  console.log(`[getUserWatchlist] Fetching watchlist for user: ${userId}`);
   
   const { data, error } = await supabase
     .from('watchlist')
@@ -43,9 +46,18 @@ export async function getUserWatchlist(userId: string) {
     .order('added_at', { ascending: false });
 
   if (error) {
-    throw new Error(`Failed to fetch watchlist: ${error.message}`);
+    console.error('[getUserWatchlist] Supabase error details:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      userId,
+      query: 'SELECT * FROM watchlist WHERE user_id = $1 ORDER BY added_at DESC',
+    });
+    throw new Error(`Failed to fetch watchlist: ${error.message}${error.details ? ` (${error.details})` : ''}${error.hint ? ` Hint: ${error.hint}` : ''}`);
   }
 
+  console.log(`[getUserWatchlist] Successfully fetched ${data?.length || 0} items for user ${userId}`);
   return data as WatchlistItem[];
 }
 
@@ -55,16 +67,28 @@ export async function addToWatchlist(
   mediaType: 'movie' | 'tv',
   status: 'watching' | 'completed' | 'plan_to_watch' = 'plan_to_watch'
 ) {
-  const supabase = createServerClient();
+  const supabase = createServiceClient();
   
   // Check if already in watchlist
-  const { data: existing } = await supabase
+  const { data: existing, error: checkError } = await supabase
     .from('watchlist')
     .select('id')
     .eq('user_id', userId)
     .eq('tmdb_id', tmdbId)
     .eq('media_type', mediaType)
-    .single();
+    .maybeSingle();
+  
+  // maybeSingle() returns null data (not an error) when no row found
+  // Only throw if there's an actual error
+  if (checkError) {
+    console.error('Supabase check error:', {
+      code: checkError.code,
+      message: checkError.message,
+      details: checkError.details,
+      hint: checkError.hint,
+    });
+    throw new Error(`Failed to check watchlist: ${checkError.message}`);
+  }
 
   if (existing) {
     // Update existing
@@ -82,6 +106,22 @@ export async function addToWatchlist(
     return data as WatchlistItem;
   }
 
+  // Fetch title from TMDB
+  let title = '';
+  try {
+    if (mediaType === 'movie') {
+      const movie = await tmdbClient.getMovieDetails(tmdbId);
+      title = movie.title || '';
+    } else {
+      const tv = await tmdbClient.getTVDetails(tmdbId);
+      title = tv.name || '';
+    }
+  } catch (tmdbError) {
+    console.error(`Failed to fetch title from TMDB for ${mediaType} ${tmdbId}:`, tmdbError);
+    // Continue with empty title - this should ideally not happen, but we'll let the DB constraint catch it
+    title = '';
+  }
+
   // Add new
   const { data, error } = await supabase
     .from('watchlist')
@@ -90,12 +130,27 @@ export async function addToWatchlist(
       tmdb_id: tmdbId,
       media_type: mediaType,
       status,
+      title, // Include the title
     })
     .select()
     .single();
 
   if (error) {
-    throw new Error(`Failed to add to watchlist: ${error.message}`);
+    console.error('Supabase insert error:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      userId,
+      tmdbId,
+      mediaType,
+      title,
+    });
+    throw new Error(`Failed to add to watchlist: ${error.message}${error.details ? ` (${error.details})` : ''}`);
+  }
+
+  if (!data) {
+    throw new Error('Failed to add to watchlist: No data returned from insert');
   }
 
   return data as WatchlistItem;
@@ -106,7 +161,7 @@ export async function removeFromWatchlist(
   tmdbId: number,
   mediaType: 'movie' | 'tv'
 ) {
-  const supabase = createServerClient();
+  const supabase = createServiceClient();
   
   const { error } = await supabase
     .from('watchlist')
@@ -126,7 +181,7 @@ export async function updateWatchlistStatus(
   mediaType: 'movie' | 'tv',
   status: 'watching' | 'completed' | 'plan_to_watch'
 ) {
-  const supabase = createServerClient();
+  const supabase = createServiceClient();
   
   const { data, error } = await supabase
     .from('watchlist')
@@ -145,7 +200,7 @@ export async function updateWatchlistStatus(
 }
 
 export async function getViewingHistory(userId: string) {
-  const supabase = createServerClient();
+  const supabase = createServiceClient();
   
   const { data, error } = await supabase
     .from('viewing_history')
@@ -167,7 +222,7 @@ export async function getViewingProgress(
   seasonNumber?: number,
   episodeNumber?: number
 ): Promise<ViewingHistory | null> {
-  const supabase = createServerClient();
+  const supabase = createServiceClient();
   
   const query = supabase
     .from('viewing_history')
@@ -206,7 +261,7 @@ export async function updateViewingProgress(
   seasonNumber?: number,
   episodeNumber?: number
 ) {
-  const supabase = createServerClient();
+  const supabase = createServiceClient();
   
   // Check if exists
   const { data: existing } = await supabase
@@ -263,7 +318,7 @@ export async function updateUserPreferences(
   userId: string,
   preferences: Record<string, any>
 ) {
-  const supabase = createServerClient();
+  const supabase = createServiceClient();
   
   const { data, error } = await supabase
     .from('profiles')

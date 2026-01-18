@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Play, Star } from 'lucide-react';
 import { useParallax } from '@/lib/hooks/useParallax';
 import TrailerPlayer from './TrailerPlayer';
+import PrePlayModal from '@/components/PrePlayModal';
 import { Genre } from '@/types';
 
 interface HeroSectionProps {
@@ -37,6 +38,7 @@ export default function HeroSection({
 }: HeroSectionProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
   const parallaxOffset = useParallax(0.3);
+  const [showPrePlayModal, setShowPrePlayModal] = useState(false);
 
   useEffect(() => {
     if (backdropRef.current) {
@@ -137,13 +139,21 @@ export default function HeroSection({
 
                 {/* Actions */}
                 <div className="flex flex-wrap items-center gap-4">
-                  <Link
-                    href={watchUrl}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const dismissed = localStorage.getItem('prePlayTipsDismissed');
+                      if (dismissed) {
+                        window.location.href = watchUrl;
+                      } else {
+                        setShowPrePlayModal(true);
+                      }
+                    }}
                     className="inline-flex items-center gap-3 bg-white text-black px-8 py-3 rounded font-bold text-base hover:bg-white/90 transition-all duration-200 hover:scale-105"
                   >
                     <Play className="w-5 h-5 fill-black" />
                     Watch Now
-                  </Link>
+                  </button>
 
                   {trailer && (
                     <TrailerPlayer 
@@ -157,6 +167,14 @@ export default function HeroSection({
           </div>
         </div>
       </div>
+
+      {/* Pre-Play Modal */}
+      <PrePlayModal
+        isOpen={showPrePlayModal}
+        onClose={() => setShowPrePlayModal(false)}
+        watchUrl={watchUrl}
+        title={title}
+      />
     </div>
   );
 }

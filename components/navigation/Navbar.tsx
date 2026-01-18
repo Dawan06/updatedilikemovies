@@ -5,14 +5,15 @@ import Image from 'next/image';
 import { useUser, SignOutButton } from '@clerk/nextjs';
 import { 
   Search, Home, Bookmark, Film, LogOut, 
-  Upload, Menu, X, ChevronDown, LogIn
+  Upload, Menu, X, ChevronDown, LogIn, Grid3x3
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 
 export default function Navbar() {
   const { user, isSignedIn, isLoaded } = useUser();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -55,7 +56,8 @@ export default function Navbar() {
 
   const navLinks = [
     { href: '/', label: 'Home', icon: Home },
-    { href: '/my-list', label: 'My List', icon: Bookmark, requiresAuth: true },
+    { href: '/browse', label: 'Browse', icon: Grid3x3 },
+    { href: '/my-list', label: 'My List', icon: Bookmark },
     { href: '/franchise', label: 'Franchise', icon: Film },
   ];
 
@@ -100,9 +102,6 @@ export default function Navbar() {
                 {navLinks.map((link) => {
                   const Icon = link.icon;
                   const active = isActive(link.href);
-                  const showLink = !link.requiresAuth || isSignedIn;
-                  
-                  if (!showLink) return null;
                   
                   return (
                     <Link
@@ -149,7 +148,30 @@ export default function Navbar() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && searchQuery.trim()) {
-                          globalThis.location.href = `/browse?search=${encodeURIComponent(searchQuery)}`;
+                          // If on browse page, preserve filter params
+                          const params = new URLSearchParams();
+                          params.set('search', searchQuery);
+                          
+                          if (pathname === '/browse') {
+                            // Preserve existing filter params
+                            const mediaType = searchParams.get('media_type');
+                            const genres = searchParams.get('genres');
+                            const yearFrom = searchParams.get('year_from');
+                            const yearTo = searchParams.get('year_to');
+                            const ratingMin = searchParams.get('rating_min');
+                            const language = searchParams.get('language');
+                            const sortBy = searchParams.get('sort_by');
+                            
+                            if (mediaType && mediaType !== 'all') params.set('media_type', mediaType);
+                            if (genres) params.set('genres', genres);
+                            if (yearFrom) params.set('year_from', yearFrom);
+                            if (yearTo) params.set('year_to', yearTo);
+                            if (ratingMin) params.set('rating_min', ratingMin);
+                            if (language) params.set('language', language);
+                            if (sortBy && sortBy !== 'popularity.desc') params.set('sort_by', sortBy);
+                          }
+                          
+                          globalThis.location.href = `/browse?${params.toString()}`;
                         }
                         if (e.key === 'Escape') {
                           setIsSearchOpen(false);
@@ -283,9 +305,6 @@ export default function Navbar() {
               {navLinks.map((link, index) => {
                 const Icon = link.icon;
                 const active = isActive(link.href);
-                const showLink = !link.requiresAuth || isSignedIn;
-                
-                if (!showLink) return null;
                 
                 return (
                   <Link

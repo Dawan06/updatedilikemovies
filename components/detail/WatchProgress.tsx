@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { useViewingProgress } from '@/lib/hooks/useViewingProgress';
 import Link from 'next/link';
 import { Play, Clock } from 'lucide-react';
+import PrePlayModal from '@/components/PrePlayModal';
 
 interface WatchProgressProps {
   tmdbId: number;
@@ -25,6 +27,8 @@ export default function WatchProgress({
     seasonNumber,
     episodeNumber,
   });
+  const [showPrePlayModal, setShowPrePlayModal] = useState(false);
+  const [pendingWatchUrl, setPendingWatchUrl] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -61,13 +65,30 @@ export default function WatchProgress({
             {remainingMinutes} min remaining
           </p>
         )}
-        <Link
-          href={`/watch/movie/${tmdbId}`}
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            const url = `/watch/movie/${tmdbId}`;
+            const dismissed = localStorage.getItem('prePlayTipsDismissed');
+            if (dismissed) {
+              window.location.href = url;
+            } else {
+              setPendingWatchUrl(url);
+              setShowPrePlayModal(true);
+            }
+          }}
           className="inline-flex items-center gap-2 text-sm font-medium text-white hover:text-primary transition-colors"
         >
           <Play className="w-4 h-4" />
           Resume Watching
-        </Link>
+        </button>
+        {pendingWatchUrl && (
+          <PrePlayModal
+            isOpen={showPrePlayModal}
+            onClose={() => setShowPrePlayModal(false)}
+            watchUrl={pendingWatchUrl}
+          />
+        )}
       </div>
     );
   }
@@ -81,13 +102,30 @@ export default function WatchProgress({
         <p className="text-white font-medium">
           Season {progress.season_number}, Episode {progress.episode_number}
         </p>
-        <Link
-          href={`/watch/tv/${tmdbId}?season=${progress.season_number}&episode=${progress.episode_number}`}
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            const url = `/watch/tv/${tmdbId}?season=${progress.season_number}&episode=${progress.episode_number}`;
+            const dismissed = localStorage.getItem('prePlayTipsDismissed');
+            if (dismissed) {
+              window.location.href = url;
+            } else {
+              setPendingWatchUrl(url);
+              setShowPrePlayModal(true);
+            }
+          }}
           className="inline-flex items-center gap-2 text-sm font-medium text-white hover:text-primary transition-colors"
         >
           <Play className="w-4 h-4" />
           Continue Watching
-        </Link>
+        </button>
+        {pendingWatchUrl && (
+          <PrePlayModal
+            isOpen={showPrePlayModal}
+            onClose={() => setShowPrePlayModal(false)}
+            watchUrl={pendingWatchUrl}
+          />
+        )}
       </div>
     );
   }

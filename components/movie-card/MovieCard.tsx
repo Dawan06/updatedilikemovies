@@ -114,29 +114,32 @@ export default function MovieCard({
         </button>
       )}
 
-      {/* Card Container */}
-      <div className="relative aspect-[2/3] rounded-md overflow-hidden bg-netflix-dark shadow-card transition-shadow duration-300">
-        {/* Loading Skeleton */}
+      {/* Card Container - Fixed aspect ratio to prevent CLS */}
+      <div className="relative aspect-[2/3] rounded-md overflow-hidden bg-netflix-dark shadow-card transition-shadow duration-300" style={{ minHeight: '270px' }}>
+        {/* Loading Skeleton - Matches exact dimensions */}
         {!imageLoaded && (
-          <div className="absolute inset-0 skeleton" />
+          <div className="absolute inset-0 skeleton" style={{ aspectRatio: '2/3' }} />
         )}
         
         {/* Poster Image */}
         {posterPath ? (
           <Image
-            src={`https://image.tmdb.org/t/p/w342${posterPath}`}
+            src={`https://image.tmdb.org/t/p/w300${posterPath}`}
             alt={title}
             fill
-            className={`object-cover transition-all duration-300 ${
+            className={`object-cover transition-opacity duration-300 ${
               imageLoaded ? 'opacity-100' : 'opacity-0'
             }`}
             sizes="(max-width: 768px) 180px, 220px"
             loading={priority ? 'eager' : 'lazy'}
             priority={priority}
             onLoad={() => setImageLoaded(true)}
+            style={{ objectFit: 'cover' }}
+            decoding={priority ? 'sync' : 'async'}
+            quality={70}
           />
         ) : (
-          <div className="w-full h-full bg-netflix-gray flex items-center justify-center">
+          <div className="absolute inset-0 bg-netflix-gray flex items-center justify-center" style={{ aspectRatio: '2/3' }}>
             <Film className="w-12 h-12 text-gray-600" />
           </div>
         )}

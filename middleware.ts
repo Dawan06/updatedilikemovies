@@ -1,19 +1,12 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { clerkMiddleware } from '@clerk/nextjs/server';
 
-// Only protect routes that require authentication
-// Guests can browse: /, /browse, /movie, /tv, /franchise, /watch (but will see sign-in message)
-// But cannot access: /my-list, /import, /settings
-const isProtectedRoute = createRouteMatcher([
-  '/my-list(.*)',
-  '/import(.*)',
-  '/settings(.*)',
-]);
-
+// Allow all routes to be accessed by guests
+// Authentication is handled in components - when guests try to add to watchlist,
+// use my-list, or import, they'll see a sign-in prompt instead of being blocked
 export default clerkMiddleware(
-  (auth, req) => {
-    if (isProtectedRoute(req)) {
-      auth().protect();
-    }
+  () => {
+    // No route protection - all pages are accessible
+    // Auth-required features show sign-in prompts in the UI
   },
   {
     clockSkewInMs: 60000, // Allow 60 seconds of clock skew

@@ -17,8 +17,12 @@ export default function FranchiseGrid({ franchises, title }: FranchiseGridProps)
         {title}
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {franchises.map((franchise) => (
-          <FranchiseCard key={franchise.collection.id} franchise={franchise} />
+        {franchises.map((franchise, index) => (
+          <FranchiseCard 
+            key={franchise.collection.id} 
+            franchise={franchise}
+            priority={index < 6} // Priority load first 6 cards (above fold)
+          />
         ))}
       </div>
     </section>

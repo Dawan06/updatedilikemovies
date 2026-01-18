@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -53,7 +51,7 @@ html {
 body {
   color: var(--text-primary);
   background: var(--netflix-black);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -61,7 +59,7 @@ body {
 
 /* Title font */
 .font-display {
-  font-family: 'Bebas Neue', 'Inter', sans-serif;
+  font-family: var(--font-bebas-neue), var(--font-inter), sans-serif;
 }
 
 /* ========================================
@@ -395,3 +393,4 @@ a:focus-visible {
   animation: shimmer 1.5s infinite;
   border-radius: 4px;
 }
+

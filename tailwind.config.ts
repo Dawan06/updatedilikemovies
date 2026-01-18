@@ -33,8 +33,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ["Bebas Neue", "Inter", "sans-serif"],
-        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+        display: ["var(--font-bebas-neue)", "var(--font-inter)", "sans-serif"],
+        sans: ["var(--font-inter)", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",

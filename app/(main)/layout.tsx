@@ -1,22 +1,19 @@
-import { auth } from '@clerk/nextjs/server';
-import { redirect } from 'next/navigation';
 import Navbar from '@/components/navigation/Navbar';
+import WatchlistSyncNotification from '@/components/watchlist/WatchlistSyncNotification';
+import { WatchlistProvider } from '@/lib/contexts/WatchlistContext';
 
-export default async function MainLayout({
+export default function MainLayout({
   children,
 }: {
   readonly children: React.ReactNode;
 }) {
-  const { userId } = await auth();
-
-  if (!userId) {
-    redirect('/sign-in');
-  }
-
   return (
-    <div className="min-h-screen bg-netflix-black overflow-x-hidden">
-      <Navbar />
-      {children}
-    </div>
+    <WatchlistProvider>
+      <div className="min-h-screen bg-netflix-black overflow-x-hidden">
+        <Navbar />
+        <WatchlistSyncNotification />
+        {children}
+      </div>
+    </WatchlistProvider>
   );
 }

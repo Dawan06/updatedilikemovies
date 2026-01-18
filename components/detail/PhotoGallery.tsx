@@ -129,6 +129,7 @@ export default function PhotoGallery({ backdrops, posters, title }: PhotoGallery
               alt={`${title} photo ${index + 1}`}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-300"
+              sizes="(max-width: 768px) 256px, 320px"
             />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
           </button>

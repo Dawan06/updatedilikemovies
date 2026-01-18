@@ -43,6 +43,31 @@ const EMBED_PROVIDERS: EmbedProvider[] = [
     getMovieUrl: (id) => `https://embed.su/embed/movie/${id}`,
     getTVUrl: (id, s, e) => `https://embed.su/embed/tv/${id}/${s}/${e}`,
   },
+  {
+    name: 'VidPlay',
+    getMovieUrl: (id) => `https://vidsrc.xyz/embed/movie/${id}`,
+    getTVUrl: (id, s, e) => `https://vidsrc.xyz/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    name: 'VidCloud',
+    getMovieUrl: (id) => `https://vidsrc.stream/embed/movie/${id}`,
+    getTVUrl: (id, s, e) => `https://vidsrc.stream/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    name: 'VidMoly',
+    getMovieUrl: (id) => `https://vidsrc.fun/embed/movie/${id}`,
+    getTVUrl: (id, s, e) => `https://vidsrc.fun/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    name: 'Vidsrc.icu',
+    getMovieUrl: (id) => `https://vidsrc.icu/embed/movie/${id}`,
+    getTVUrl: (id, s, e) => `https://vidsrc.icu/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    name: 'Vidsrc.ru',
+    getMovieUrl: (id) => `https://vidsrc.ru/embed/movie/${id}`,
+    getTVUrl: (id, s, e) => `https://vidsrc.ru/embed/tv/${id}/${s}/${e}`,
+  },
 ];
 
 export class VidsrcClient {

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import YouTube, { YouTubeEvent, YouTubePlayer } from 'react-youtube';
 import { Movie, TVShow } from '@/types';
 import { Play, Info, Star, Volume2, VolumeX } from 'lucide-react';
+import PrePlayModal from '@/components/PrePlayModal';
 
 interface VideoInfo {
   key: string;
@@ -31,7 +32,12 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
   const [isMuted, setIsMuted] = useState(true);
   const [videoReady, setVideoReady] = useState<Record<number, boolean>>({});
   const [showVideo, setShowVideo] = useState(false);
+  const [shouldLoadVideo, setShouldLoadVideo] = useState(false);
+  const [showPrePlayModal, setShowPrePlayModal] = useState(false);
+  const [pendingWatchUrl, setPendingWatchUrl] = useState<string | null>(null);
   const playerRefs = useRef<Record<number, YouTubePlayer>>({});
+  const heroRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   const slideCount = Math.min(items.length, 5);
   const slides: HeroItem[] = items.slice(0, slideCount).map(item => ({
@@ -61,10 +67,47 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
     return () => clearInterval(interval);
   }, [nextSlide]);
 
-  // Show video after initial mount
+  // Use intersection observer and delay to improve LCP
   useEffect(() => {
-    const timer = setTimeout(() => setShowVideo(true), 1000);
-    return () => clearTimeout(timer);
+    // Delay YouTube load until after LCP (first image loads)
+    // Increased delay to 3500ms to ensure LCP completes
+    const timer = setTimeout(() => {
+      setShowVideo(true);
+      
+      // Use intersection observer to only load video when hero is visible
+      if (heroRef.current && typeof IntersectionObserver !== 'undefined') {
+        observerRef.current = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                setShouldLoadVideo(true);
+                if (observerRef.current) {
+                  observerRef.current.disconnect();
+                  observerRef.current = null;
+                }
+              }
+            });
+          },
+          {
+            rootMargin: '50px',
+            threshold: 0.1,
+          }
+        );
+        
+        observerRef.current.observe(heroRef.current);
+      } else {
+        // Fallback: load video if intersection observer not available
+        setShouldLoadVideo(true);
+      }
+    }, 3500);
+    
+    return () => {
+      clearTimeout(timer);
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
+    };
   }, []);
 
   const onVideoReady = (event: YouTubeEvent, itemId: number) => {
@@ -122,11 +165,12 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
   };
 
   return (
-    <div className="relative h-[85vh] min-h-[550px] max-h-[900px] w-full overflow-hidden">
+    <div ref={heroRef} className="relative w-full overflow-hidden" style={{ aspectRatio: '16/9', minHeight: '550px', maxHeight: '900px', height: '85vh' }}>
       {/* Background - All slides */}
       {slides.map((slide, index) => {
         const hasTrailer = slide.trailerKey && showVideo;
         const isCurrentSlide = index === currentIndex;
+        const shouldLoad = index === 0 || index === currentIndex; // Only load first and current slide images
         
         return (
           <div
@@ -136,9 +180,9 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
             }`}
           >
             {/* Backdrop Image (always present as fallback) */}
-            {slide.item.backdrop_path && (
+            {slide.item.backdrop_path && shouldLoad && (
               <Image
-                src={`https://image.tmdb.org/t/p/original${slide.item.backdrop_path}`}
+                src={`https://image.tmdb.org/t/p/w780${slide.item.backdrop_path}`}
                 alt={(slide.item as Movie).title || (slide.item as TVShow).name || ''}
                 fill
                 className={`object-cover transition-opacity duration-500 ${
@@ -146,12 +190,13 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
                 }`}
                 priority={index === 0}
                 sizes="100vw"
-                quality={85}
+                quality={75}
+                decoding="async"
               />
             )}
             
-            {/* YouTube Video Trailer */}
-            {slide.trailerKey && isCurrentSlide && showVideo && (
+            {/* YouTube Video Trailer - Lazy load only when slide is active, after delay, and when visible */}
+            {slide.trailerKey && isCurrentSlide && showVideo && shouldLoadVideo && (
               <div className="absolute inset-0 w-full h-full overflow-hidden">
                 <div className="absolute inset-0 scale-150">
                   <YouTube
@@ -160,6 +205,7 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
                     onReady={(e) => onVideoReady(e, slide.item.id)}
                     className="w-full h-full"
                     iframeClassName="w-full h-full pointer-events-none"
+                    loading="lazy"
                   />
                 </div>
               </div>
@@ -224,13 +270,23 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
 
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-3 animate-fade-in-up animation-delay-300">
-              <Link 
-                href={`/watch/${mediaType}/${currentItem.id}`}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  const watchUrl = `/watch/${mediaType}/${currentItem.id}`;
+                  const dismissed = localStorage.getItem('prePlayTipsDismissed');
+                  if (dismissed) {
+                    window.location.href = watchUrl;
+                  } else {
+                    setPendingWatchUrl(watchUrl);
+                    setShowPrePlayModal(true);
+                  }
+                }}
                 className="group flex items-center gap-2 bg-white text-black px-6 md:px-8 py-3 rounded-md font-semibold text-lg hover:bg-gray-200 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
               >
                 <Play className="w-6 h-6 fill-black" />
                 <span>Play</span>
-              </Link>
+              </button>
               <Link 
                 href={`/${mediaType}/${currentItem.id}`}
                 className="group flex items-center gap-2 glass text-white px-6 md:px-8 py-3 rounded-md font-semibold text-lg hover:bg-white/20 transition-all duration-300 shadow-lg"
@@ -261,6 +317,16 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
 
       {/* Bottom Fade */}
       <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-netflix-black to-transparent pointer-events-none z-20" />
+
+      {/* Pre-Play Modal */}
+      {pendingWatchUrl && (
+        <PrePlayModal
+          isOpen={showPrePlayModal}
+          onClose={() => setShowPrePlayModal(false)}
+          watchUrl={pendingWatchUrl}
+          title={title}
+        />
+      )}
     </div>
   );
 }

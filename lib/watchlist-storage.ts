@@ -1,5 +1,6 @@
-// Watchlist storage utility using localStorage
-// Supports large lists (5-10MB vs 4KB cookie limit)
+// Watchlist storage utility
+// NOTE: This file now primarily handles localStorage for migration purposes.
+// For production use, components should use the useWatchlist hook or API directly.
 
 export interface WatchlistItem {
   tmdb_id: number;
@@ -157,4 +158,60 @@ export function removeManyFromWatchlist(
   const removed = watchlist.length - newWatchlist.length;
   setWatchlist(newWatchlist);
   return removed;
+}
+
+/**
+ * Sync localStorage watchlist to Supabase (for migration)
+ * Returns the number of items migrated
+ */
+export async function syncWatchlistToCloud(): Promise<{ migrated: number; skipped: number }> {
+  if (typeof window === 'undefined') return { migrated: 0, skipped: 0 };
+
+  const localItems = getWatchlist();
+  if (localItems.length === 0) {
+    return { migrated: 0, skipped: 0 };
+  }
+
+  try {
+    const response = await fetch('/api/watchlist/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: localItems }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to sync watchlist');
+    }
+
+    const data = await response.json();
+    
+    // Clear localStorage after successful sync
+    if (data.migrated > 0) {
+      clearWatchlist();
+    }
+
+    return { migrated: data.migrated || 0, skipped: data.skipped || 0 };
+  } catch (error) {
+    console.error('Error syncing watchlist to cloud:', error);
+    return { migrated: 0, skipped: 0 };
+  }
+}
+
+/**
+ * Fetch watchlist from Supabase API
+ */
+export async function fetchWatchlistFromCloud(): Promise<WatchlistItem[]> {
+  try {
+    const response = await fetch('/api/watchlist');
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch watchlist');
+    }
+
+    const data = await response.json();
+    return data.items || [];
+  } catch (error) {
+    console.error('Error fetching watchlist from cloud:', error);
+    return [];
+  }
 }

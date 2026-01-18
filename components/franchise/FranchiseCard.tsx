@@ -7,15 +7,17 @@ import { FranchiseCard as FranchiseCardType } from '@/types';
 
 interface FranchiseCardProps {
   readonly franchise: FranchiseCardType;
+  readonly priority?: boolean;
 }
 
-export default function FranchiseCard({ franchise }: FranchiseCardProps) {
+export default function FranchiseCard({ franchise, priority = false }: FranchiseCardProps) {
   const { collection, userHasMovies, movieCount, userMovieCount } = franchise;
+  // Use smaller image sizes for grid cards - they're displayed smaller so don't need full resolution
   const backdropUrl = collection.backdrop_path
-    ? `https://image.tmdb.org/t/p/w1280${collection.backdrop_path}`
+    ? `https://image.tmdb.org/t/p/w780${collection.backdrop_path}` // Reduced from w1280 to w780 (~60% smaller)
     : null;
   const posterUrl = collection.poster_path
-    ? `https://image.tmdb.org/t/p/w500${collection.poster_path}`
+    ? `https://image.tmdb.org/t/p/w342${collection.poster_path}` // Reduced from w500 to w342 for smaller overlay
     : null;
 
   return (
@@ -31,7 +33,10 @@ export default function FranchiseCard({ franchise }: FranchiseCardProps) {
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-110"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          loading="lazy"
+          loading={priority ? 'eager' : 'lazy'}
+          priority={priority}
+          quality={85}
+          unoptimized={false}
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-netflix-gray to-netflix-dark" />

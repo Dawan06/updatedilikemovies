@@ -37,8 +37,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ sources });
   } catch (error) {
     console.error('Error fetching video sources:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Provide more specific error messages
+    if (errorMessage.includes('not found') || errorMessage.includes('404')) {
+      return NextResponse.json(
+        { error: 'Video sources not available for this content. Try selecting a different server or check back later.' },
+        { status: 404 }
+      );
+    }
+    
+    if (errorMessage.includes('timeout') || errorMessage.includes('network')) {
+      return NextResponse.json(
+        { error: 'Network timeout while fetching video sources. Please check your connection and try again.' },
+        { status: 504 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to fetch video sources' },
+      { 
+        error: 'Failed to fetch video sources',
+        details: errorMessage,
+        suggestion: 'Try refreshing the page or selecting a different server.'
+      },
       { status: 500 }
     );
   }

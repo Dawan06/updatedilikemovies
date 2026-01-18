@@ -46,12 +46,13 @@ export default function VideoPlayer({
   const currentSource = sources[currentIndex];
   const isTV = !!tvId && !!currentSeason && !!currentEpisode;
 
-  // Test server speeds and prioritize fast ones
+  // Test server speeds (for display only - no auto-selection)
   useEffect(() => {
     const testServers = async () => {
       const statuses: ServerStatus[] = [];
       
-      const testPromises = sources.slice(0, 3).map(async (source, index) => {
+      // Test all servers in parallel to show speed badges
+      const testPromises = sources.map(async (source, index) => {
         const startTime = Date.now();
         try {
           const controller = new AbortController();
@@ -82,26 +83,15 @@ export default function VideoPlayer({
 
       const results = await Promise.all(testPromises);
       statuses.push(...results);
-      
-      for (let i = 3; i < sources.length; i++) {
-        statuses.push({ index: i, speed: 5000, status: 'slow' as 'slow' });
-      }
 
       setServerStatuses(statuses);
-      
-      const fastest = statuses
-        .filter(s => s.status === 'fast')
-        .sort((a, b) => a.speed - b.speed)[0];
-      
-      if (fastest && fastest.index !== currentIndex) {
-        setCurrentIndex(fastest.index);
-      }
+      // No auto-selection - user chooses manually
     };
 
     if (sources.length > 0) {
       testServers();
     }
-  }, [sources, currentIndex]);
+  }, [sources]);
 
   // Preload next servers in background
   useEffect(() => {
@@ -231,7 +221,7 @@ export default function VideoPlayer({
               <h1 className="text-white font-medium truncate text-sm md:text-base">{title}</h1>
               {isTV && (
                 <p className="text-gray-400 text-xs">
-                  Season {currentSeason} <span className="text-primary">�</span> Episode {currentEpisode}
+                  Season {currentSeason} <span className="text-primary">•</span> Episode {currentEpisode}
                 </p>
               )}
             </div>
@@ -326,9 +316,22 @@ export default function VideoPlayer({
               </button>
             </div>
             <div className="max-h-80 overflow-y-auto">
-              {sources.map((source, i) => {
-                const status = serverStatuses.find(s => s.index === i);
-                return (
+              {/* Sort sources by speed: fast first, then by speed ascending */}
+              {[...sources]
+                .map((source, i) => ({ source, index: i, status: serverStatuses.find(s => s.index === i) }))
+                .sort((a, b) => {
+                  const statusA = a.status;
+                  const statusB = b.status;
+                  if (!statusA && !statusB) return 0;
+                  if (!statusA) return 1;
+                  if (!statusB) return -1;
+                  // Fast first
+                  if (statusA.status === 'fast' && statusB.status !== 'fast') return -1;
+                  if (statusB.status === 'fast' && statusA.status !== 'fast') return 1;
+                  // Then by speed
+                  return statusA.speed - statusB.speed;
+                })
+                .map(({ source, index: i, status }) => (
                   <button
                     key={`${source.provider}-${source.url}`}
                     onClick={() => handleServerChange(i)}
@@ -356,8 +359,7 @@ export default function VideoPlayer({
                       <span className="text-xs text-primary font-medium">Playing</span>
                     )}
                   </button>
-                );
-              })}
+                ))}
             </div>
           </div>
         </>
@@ -393,6 +395,7 @@ export default function VideoPlayer({
                         alt={ep.name}
                         fill
                         className="object-cover"
+                        sizes="96px"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs">

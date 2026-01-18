@@ -1,11 +1,71 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, FileText, CheckCircle, XCircle, Loader2, Info } from 'lucide-react';
+import { Upload, FileText, CheckCircle, XCircle, Loader2, Info, LogIn, Plus } from 'lucide-react';
 import Link from 'next/link';
-import { addManyToWatchlist } from '@/lib/watchlist-storage';
+import { useUser } from '@clerk/nextjs';
+import { useWatchlist } from '@/lib/hooks/useWatchlist';
 
 export default function ImportPage() {
+  const { isSignedIn, isLoaded: authLoaded } = useUser();
+  const { addItem, refresh } = useWatchlist();
+
+  // Show sign-in prompt for guests
+  if (authLoaded && !isSignedIn) {
+    return (
+      <main className="min-h-screen bg-netflix-black px-4 md:px-12 py-12">
+        <div className="max-w-3xl mx-auto">
+          <div className="mb-8">
+            <h1 className="font-display text-4xl md:text-5xl text-white mb-3 tracking-wide">IMPORT WATCHLIST</h1>
+            <p className="text-gray-400 text-lg">
+              Upload your CSV file from IMDb or Letterboxd to add items to your watchlist
+            </p>
+          </div>
+
+          <div className="glass rounded-xl p-8 text-center">
+            <div className="relative inline-flex items-center justify-center mb-8">
+              <div className="absolute w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
+              <div className="relative w-24 h-24 bg-netflix-dark rounded-2xl flex items-center justify-center border border-white/10">
+                <Upload className="w-12 h-12 text-gray-600" />
+              </div>
+            </div>
+            
+            <h2 className="text-white text-2xl font-semibold mb-3">Sign in to import your watchlist</h2>
+            <p className="text-gray-400 mb-8 max-w-md mx-auto">
+              Create an account or sign in to import your watchlist from IMDb or Letterboxd
+            </p>
+            
+            <div className="flex flex-col sm:flex-row justify-center gap-3">
+              <Link 
+                href="/sign-in"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary-dark text-white rounded-lg font-semibold transition-colors"
+              >
+                <LogIn className="w-5 h-5" />
+                Sign In
+              </Link>
+              <Link 
+                href="/sign-up"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 glass hover:bg-white/10 text-white rounded-lg font-semibold transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                Create Account
+              </Link>
+            </div>
+            
+            <div className="mt-12 pt-8 border-t border-white/10">
+              <p className="text-gray-500 text-sm mb-4">Or continue browsing</p>
+              <Link 
+                href="/"
+                className="text-primary hover:underline"
+              >
+                ← Back to Home
+              </Link>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
   const [file, setFile] = useState<File | null>(null);
   const [source, setSource] = useState<'imdb' | 'letterboxd' | null>(null);
   const [loading, setLoading] = useState(false);
@@ -48,17 +108,63 @@ export default function ImportPage() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Save matched items to localStorage
+        // Save matched items to Supabase via batch API
         const items = data.items || [];
-        const { added, skipped } = addManyToWatchlist(items);
+        
+        const batchResponse = await fetch('/api/watchlist', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items }),
+        });
+
+        let added = 0;
+        let skipped = 0;
+        const batchData = await batchResponse.json();
+        
+        if (batchResponse.ok && batchData.success !== false) {
+          added = batchData.added || 0;
+          skipped = batchData.skipped || 0;
+          
+          // Show errors if any
+          if (batchData.errors && batchData.errors.length > 0) {
+            console.error('[Import] Batch import errors:', batchData.errors);
+            console.error('[Import] Sample error:', batchData.sampleError || batchData.errors[0]);
+          }
+        } else {
+          // Fallback to individual adds if batch fails
+          console.error('[Import] Batch request failed, falling back to individual adds');
+          for (const item of items) {
+            try {
+              const success = await addItem(item.tmdb_id, item.media_type);
+              if (success) {
+                added++;
+              } else {
+                skipped++;
+              }
+            } catch (error) {
+              console.error(`[Import] Error adding item ${item.tmdb_id}:`, error);
+              skipped++;
+            }
+          }
+        }
+
+        // Refresh watchlist to show updated data
+        await refresh();
+        
+        // Check if batch response had errors (all items failed to add)
+        const hasErrors = batchData.errorCount > 0 || (added === 0 && skipped === items.length && items.length > 0);
         
         setResult({
-          success: true,
+          success: !hasErrors && added > 0,
           total: data.total,
           matched: data.matched,
           added,
           skipped,
           failed: data.failed,
+          ...(hasErrors && {
+            error: batchData.error || `Failed to add items. ${batchData.errorCount || skipped} errors occurred. Check server console for details.`,
+            errorDetails: batchData.sampleError || batchData.errors?.[0]
+          })
         });
       } else {
         setResult({ success: false, error: data.error || 'Import failed' });

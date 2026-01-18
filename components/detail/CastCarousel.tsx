@@ -83,6 +83,7 @@ export default function CastCarousel({ cast }: CastCarouselProps) {
                   alt={person.name}
                   fill
                   className="object-cover group-hover:scale-105 transition-transform duration-300"
+                  sizes="128px"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">

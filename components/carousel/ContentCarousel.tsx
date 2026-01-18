@@ -88,11 +88,11 @@ export default function ContentCarousel({ title, seeAllHref, children }: Content
           </button>
         </div>
 
-        {/* Scrollable Content */}
+        {/* Scrollable Content - Fixed height to prevent CLS */}
         <div
           ref={scrollRef}
           className="flex gap-2 md:gap-3 overflow-x-auto scrollbar-hide scroll-smooth px-4 md:px-12 pb-4"
-          style={{ scrollSnapType: 'x mandatory' }}
+          style={{ scrollSnapType: 'x mandatory', minHeight: '320px' }}
         >
           {children}
         </div>

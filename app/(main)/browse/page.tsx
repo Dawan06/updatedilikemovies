@@ -1,172 +1,87 @@
 import { tmdbClient } from '@/lib/tmdb/client';
-import MovieCard from '@/components/movie-card/MovieCard';
-import SearchPagination from './SearchPagination';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import dynamic from 'next/dynamic';
+import DiscoverClient from './DiscoverClient';
+import SearchResults from './SearchResults';
+
+const DiscoverClientDynamic = dynamic(() => import('./DiscoverClient'), { ssr: false });
 
 interface BrowsePageProps {
-  searchParams: { search?: string; page?: string };
+  searchParams: { 
+    search?: string; 
+    page?: string;
+    media_type?: string;
+    genres?: string;
+    year_from?: string;
+    year_to?: string;
+    rating_min?: string;
+    language?: string;
+    sort_by?: string;
+  };
 }
 
-function BrowseContent({ searchQuery, page }: { searchQuery?: string; page: number }) {
-  if (searchQuery) {
-    return <SearchResults query={searchQuery} page={page} />;
+async function BrowseContent({ searchParams }: BrowsePageProps) {
+  // If search query exists, show search results with filters
+  if (searchParams.search) {
+    // Extract filter params to pass to SearchResults
+    const filters = {
+      media_type: searchParams.media_type,
+      genres: searchParams.genres,
+      year_from: searchParams.year_from,
+      year_to: searchParams.year_to,
+      rating_min: searchParams.rating_min,
+      language: searchParams.language,
+      sort_by: searchParams.sort_by,
+    };
+    
+    return (
+      <SearchResults 
+        query={searchParams.search} 
+        page={parseInt(searchParams.page || '1', 10)}
+        filters={filters}
+      />
+    );
   }
 
-  return (
-    <div className="space-y-12">
-      <TrendingSection page={page} />
-      <PopularSection page={page} />
-      <TopRatedSection page={page} />
-    </div>
-  );
-}
-
-async function SearchResults({ query, page }: { query: string; page: number }) {
-  const results = await tmdbClient.searchMulti(query, page);
-  const totalPages = results.total_pages || 1;
-  const totalResults = results.total_results || 0;
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-white">
-          Search Results for &quot;{query}&quot;
-        </h1>
-        {totalResults > 0 && (
-          <span className="text-gray-400 text-sm">
-            {totalResults} {totalResults === 1 ? 'result' : 'results'}
-          </span>
-        )}
-      </div>
-      {results.results.length === 0 ? (
-        <p className="text-gray-400 text-center py-12">No results found.</p>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mb-8">
-            {results.results.map((item) => (
-              <MovieCard
-                key={`${item.media_type}-${item.id}`}
-                item={item}
-                mediaType={item.media_type}
-              />
-            ))}
-          </div>
-          
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <SearchPagination 
-              currentPage={page} 
-              totalPages={totalPages} 
-              query={query}
-            />
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-async function TrendingSection({ page }: { page: number }) {
-  const [movies, tv] = await Promise.all([
-    tmdbClient.getTrendingMovies(page),
-    tmdbClient.getTrendingTV(page),
+  // Otherwise show filtered discover results
+  const [movieGenresData, tvGenresData] = await Promise.all([
+    tmdbClient.getMovieGenres().catch(() => ({ genres: [] })),
+    tmdbClient.getTVGenres().catch(() => ({ genres: [] })),
   ]);
 
-  return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-6">Trending Movies</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {movies.results.map((movie) => (
-            <MovieCard key={movie.id} item={movie} mediaType="movie" />
-          ))}
-        </div>
-      </div>
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-6">Trending TV Shows</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {tv.results.map((show) => (
-            <MovieCard key={show.id} item={show} mediaType="tv" />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+  const movieGenres = movieGenresData.genres || [];
+  const tvGenres = tvGenresData.genres || [];
 
-async function PopularSection({ page }: { page: number }) {
-  const [movies, tv] = await Promise.all([
-    tmdbClient.getPopularMovies(page),
-    tmdbClient.getPopularTV(page),
-  ]);
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-6">Popular Movies</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {movies.results.map((movie) => (
-            <MovieCard key={movie.id} item={movie} mediaType="movie" />
-          ))}
-        </div>
-      </div>
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-6">Popular TV Shows</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {tv.results.map((show) => (
-            <MovieCard key={show.id} item={show} mediaType="tv" />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-async function TopRatedSection({ page }: { page: number }) {
-  const [movies, tv] = await Promise.all([
-    tmdbClient.getTopRatedMovies(page),
-    tmdbClient.getTopRatedTV(page),
-  ]);
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-6">Top Rated Movies</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {movies.results.map((movie) => (
-            <MovieCard key={movie.id} item={movie} mediaType="movie" />
-          ))}
-        </div>
-      </div>
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-6">Top Rated TV Shows</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {tv.results.map((show) => (
-            <MovieCard key={show.id} item={show} mediaType="tv" />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  return <DiscoverClientDynamic movieGenres={movieGenres} tvGenres={tvGenres} />;
 }
 
 export default function BrowsePage({ searchParams }: BrowsePageProps) {
-  const searchQuery = searchParams.search;
-  const page = parseInt(searchParams.page || '1', 10);
+  const hasSearch = !!searchParams.search;
 
   return (
     <div className="container mx-auto px-4 md:px-8 py-12">
+      {/* Page Header */}
+      {!hasSearch && (
+        <div className="mb-8">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">Discover</h1>
+          <p className="text-gray-400">
+            Browse through thousands of movies and TV shows with powerful filters
+          </p>
+        </div>
+      )}
+
+      {/* Content */}
       <Suspense
         fallback={
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {Array.from({ length: 12 }).map((_, i) => (
+            {Array.from({ length: 18 }).map((_, i) => (
               <Skeleton key={i} className="aspect-[2/3]" />
             ))}
           </div>
         }
       >
-        <BrowseContent searchQuery={searchQuery} page={page} />
+        <BrowseContent searchParams={searchParams} />
       </Suspense>
     </div>
   );

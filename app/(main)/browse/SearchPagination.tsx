@@ -7,13 +7,51 @@ interface SearchPaginationProps {
   currentPage: number;
   totalPages: number;
   query: string;
+  filters?: {
+    media_type?: string;
+    genres?: string;
+    year_from?: string;
+    year_to?: string;
+    rating_min?: string;
+    language?: string;
+    sort_by?: string;
+  };
 }
 
-export default function SearchPagination({ currentPage, totalPages, query }: SearchPaginationProps) {
+export default function SearchPagination({ currentPage, totalPages, query, filters }: SearchPaginationProps) {
   const router = useRouter();
 
   const handlePageChange = (newPage: number) => {
-    router.push(`/browse?search=${encodeURIComponent(query)}&page=${newPage}`);
+    const params = new URLSearchParams();
+    params.set('search', query);
+    params.set('page', newPage.toString());
+    
+    // Preserve filter params
+    if (filters) {
+      if (filters.media_type && filters.media_type !== 'all') {
+        params.set('media_type', filters.media_type);
+      }
+      if (filters.genres) {
+        params.set('genres', filters.genres);
+      }
+      if (filters.year_from) {
+        params.set('year_from', filters.year_from);
+      }
+      if (filters.year_to) {
+        params.set('year_to', filters.year_to);
+      }
+      if (filters.rating_min) {
+        params.set('rating_min', filters.rating_min);
+      }
+      if (filters.language) {
+        params.set('language', filters.language);
+      }
+      if (filters.sort_by && filters.sort_by !== 'popularity.desc') {
+        params.set('sort_by', filters.sort_by);
+      }
+    }
+    
+    router.push(`/browse?${params.toString()}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

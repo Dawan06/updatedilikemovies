@@ -1,9 +1,22 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Bebas_Neue } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ 
+  subsets: ["latin"],
+  display: 'swap',
+  variable: '--font-inter',
+  preload: true,
+});
+
+const bebasNeue = Bebas_Neue({ 
+  weight: '400',
+  subsets: ["latin"],
+  display: 'swap',
+  variable: '--font-bebas-neue',
+  preload: true,
+});
 
 export const metadata: Metadata = {
   title: "ILikeMovies - Your Personal Movie Library",
@@ -23,7 +36,15 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={inter.className}>{children}</body>
+        <head>
+          <link rel="preconnect" href="https://image.tmdb.org" crossOrigin="anonymous" />
+          <link rel="dns-prefetch" href="https://image.tmdb.org" />
+          <link rel="preconnect" href="https://api.tmdb.org" crossOrigin="anonymous" />
+          <link rel="dns-prefetch" href="https://api.tmdb.org" />
+        </head>
+        <body className={`${inter.variable} ${bebasNeue.variable} ${inter.className}`}>
+          {children}
+        </body>
       </html>
     </ClerkProvider>
   );
