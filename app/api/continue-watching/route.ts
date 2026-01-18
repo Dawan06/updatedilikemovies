@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { getViewingHistory } from '@/lib/supabase/helpers';
 import { tmdbClient } from '@/lib/tmdb/client';
-import { Movie, TVShow } from '@/types';
+import { MovieDetails, TVShowDetails } from '@/types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0; // No caching for user-specific data
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     const itemsWithDetails = await Promise.all(
       limitedItems.map(async (item) => {
         try {
-          let details: Movie | TVShow;
+          let details: MovieDetails | TVShowDetails;
           let runtime: number | null = null;
 
           if (item.media_type === 'movie') {
