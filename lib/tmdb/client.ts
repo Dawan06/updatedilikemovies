@@ -1,17 +1,21 @@
 import { Movie, TVShow, MovieDetails, TVShowDetails, Credits, MediaItem, SeasonDetails } from '@/types';
 
-const TMDB_API_KEY = process.env.TMDB_API_KEY!;
+const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
-if (!TMDB_API_KEY) {
-  throw new Error('Missing TMDB API key');
+function getApiKey(): string {
+  if (!TMDB_API_KEY) {
+    throw new Error('Missing TMDB API key. Please set TMDB_API_KEY in your environment variables.');
+  }
+  return TMDB_API_KEY;
 }
 
 class TMDBClient {
   private async fetch<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
+    const apiKey = getApiKey();
     const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
-    url.searchParams.set('api_key', TMDB_API_KEY);
-    
+    url.searchParams.set('api_key', apiKey);
+
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         url.searchParams.set(key, value);
@@ -92,6 +96,22 @@ class TMDBClient {
 
   async searchMulti(query: string, page: number = 1): Promise<{ results: MediaItem[]; total_pages: number; total_results: number }> {
     return this.fetch<{ results: MediaItem[]; total_pages: number; total_results: number }>('/search/multi', {
+      query,
+      page: page.toString(),
+    });
+  }
+
+  async searchCollections(query: string, page: number = 1): Promise<{
+    results: Array<{
+      id: number;
+      name: string;
+      poster_path: string | null;
+      backdrop_path: string | null;
+    }>;
+    total_pages: number;
+    total_results: number;
+  }> {
+    return this.fetch('/search/collection', {
       query,
       page: page.toString(),
     });

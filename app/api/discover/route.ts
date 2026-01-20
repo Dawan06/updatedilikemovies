@@ -1,21 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { tmdbClient } from '@/lib/tmdb/client';
 
+// Ensure this route is always dynamic and respects query parameters
 export const dynamic = 'force-dynamic';
-export const revalidate = 300; // Cache for 5 minutes
+export const revalidate = 0; // Disable static revalidation completely
 
-const CACHE_HEADERS = {
-  'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+// No caching for discover API - filters need to work on every request
+// The TMDB API is fast enough and we need query params to be respected
+const getCacheHeaders = (request: NextRequest) => {
+  return {
+    'Cache-Control': 'no-store, no-cache, must-revalidate',
+    'Pragma': 'no-cache',
+    // Add a custom header with search params for debugging
+    'X-Query-Params': request.nextUrl.search.slice(0, 100) || 'none',
+  };
 };
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    
+
     // Media type: 'movie', 'tv', or 'all'
     const mediaType = searchParams.get('media_type') || 'all';
     const page = parseInt(searchParams.get('page') || '1', 10);
-    
+
     // Filter parameters
     const genres = searchParams.get('genres'); // comma-separated genre IDs
     const yearFrom = searchParams.get('year_from');
@@ -27,7 +35,7 @@ export async function GET(request: NextRequest) {
     const runtimeMin = searchParams.get('runtime_min');
     const runtimeMax = searchParams.get('runtime_max');
     const withoutGenres = searchParams.get('without_genres');
-    
+
     // Build TMDB discover parameters
     const buildDiscoverParams = (type: 'movie' | 'tv') => {
       const params: Record<string, string> = {
@@ -122,7 +130,7 @@ export async function GET(request: NextRequest) {
         combinedResults.sort((a, b) => {
           const dateA = a.release_date || a.first_air_date || '';
           const dateB = b.release_date || b.first_air_date || '';
-          return sortBy === 'release_date.desc' 
+          return sortBy === 'release_date.desc'
             ? dateB.localeCompare(dateA)
             : dateA.localeCompare(dateB);
         });
@@ -146,13 +154,13 @@ export async function GET(request: NextRequest) {
           movie_count: movieResults?.total_results || 0,
           tv_count: tvResults?.total_results || 0,
         },
-        { headers: CACHE_HEADERS }
+        { headers: getCacheHeaders(request) }
       );
     }
 
     // Return single media type results
     const results = mediaType === 'movie' ? movieResults : tvResults;
-    return NextResponse.json(results, { headers: CACHE_HEADERS });
+    return NextResponse.json(results, { headers: getCacheHeaders(request) });
   } catch (error) {
     console.error('Error in discover API:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

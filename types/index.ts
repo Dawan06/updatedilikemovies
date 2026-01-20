@@ -213,4 +213,5 @@ export interface FranchiseCard {
   userHasMovies: boolean;
   movieCount: number;
   userMovieCount: number;
+  avgRating?: number; // Optional since it's a UI-calculated field
 }

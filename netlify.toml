@@ -32,6 +32,15 @@
   [headers.values]
     Cache-Control = "public, s-maxage=3600, stale-while-revalidate=86400"
 
+# Discover API - disable CDN caching to ensure filters work correctly
+# Query parameters must affect results, so we cannot cache at CDN level
+[[headers]]
+  for = "/api/discover"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate"
+    Pragma = "no-cache"
+    Vary = "Accept-Encoding"
+
 [[headers]]
   for = "/_next/image"
   [headers.values]

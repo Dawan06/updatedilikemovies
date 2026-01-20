@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useUser } from '@clerk/nextjs';
 import { useWatchlist } from '@/lib/hooks/useWatchlist';
 import { CheckCircle, X } from 'lucide-react';
 
 export default function WatchlistSyncNotification() {
+  const { isSignedIn } = useUser();
   const { synced } = useWatchlist();
   const [showNotification, setShowNotification] = useState(false);
   const [migrationMessage, setMigrationMessage] = useState<string | null>(null);
@@ -20,7 +22,7 @@ export default function WatchlistSyncNotification() {
             setMigrationMessage(`${data.migrated} item${data.migrated === 1 ? '' : 's'} synced to cloud`);
             setShowNotification(true);
             sessionStorage.removeItem('watchlist_migration');
-            
+
             // Auto-hide after 5 seconds
             setTimeout(() => setShowNotification(false), 5000);
           }
@@ -31,7 +33,8 @@ export default function WatchlistSyncNotification() {
     }
   }, [synced]);
 
-  if (!showNotification || !migrationMessage) return null;
+  // Don't show notification if not signed in or no message to show
+  if (!isSignedIn || !showNotification || !migrationMessage) return null;
 
   return (
     <div className="fixed top-20 right-4 z-50 animate-fade-in-down">

@@ -1,205 +1,296 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useWatchlist } from '@/lib/hooks/useWatchlist';
-import FranchiseHero from '@/components/franchise/FranchiseHero';
-import FranchiseGrid from '@/components/franchise/FranchiseGrid';
-import { FranchiseCard } from '@/types';
-import { Loader2 } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { Search, Film, X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import FranchiseCard from '@/components/franchise/FranchiseCard';
+import { FranchiseCard as FranchiseCardType } from '@/types';
 
 interface FranchisePageClientProps {
-  readonly initialFranchises: FranchiseCard[];
-  readonly initialHeroFranchises: FranchiseCard[];
-  readonly initialTotalCount: number;
-  readonly initialHasMore: boolean;
+  readonly franchises: FranchiseCardType[];
 }
 
-export default function FranchisePageClient({
-  initialFranchises,
-  initialHeroFranchises,
-  initialTotalCount,
-  initialHasMore,
-}: FranchisePageClientProps) {
-  const { items: watchlistItems } = useWatchlist();
-  
-  const [franchises, setFranchises] = useState<FranchiseCard[]>(initialFranchises);
-  const [heroFranchises, setHeroFranchises] = useState<FranchiseCard[]>(initialHeroFranchises);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(initialHasMore);
-  const [totalCount, setTotalCount] = useState(initialTotalCount);
-  const itemsPerPage = 20;
-  
-  const observerTarget = useRef<HTMLDivElement>(null);
+export default function FranchisePageClient({ franchises: initialFranchises }: FranchisePageClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  const loadFranchises = useCallback(async (page: number, append: boolean = false) => {
-    try {
-      if (append) {
-        setLoadingMore(true);
-      }
-      
-      // Convert WatchlistItem to format expected by franchises API
-      const watchlist = watchlistItems.map(item => ({
-        tmdb_id: item.tmdb_id,
-        media_type: item.media_type,
-      }));
+  // State
+  // We keep a buffer of ALL fetched franchises
+  const [allFranchises, setAllFranchises] = useState<FranchiseCardType[]>(initialFranchises);
 
-      const response = await fetch('/api/franchises', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          watchlist, 
-          page, 
-          itemsPerPage,
-          includeAll: true, // Enable progressive discovery of all franchises
-        }),
-      });
+  // Validation state
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiPageToFetch, setApiPageToFetch] = useState(2); // Next API page to fetch (starts at 2)
+  const [hasMoreApiData, setHasMoreApiData] = useState(true);
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch franchises');
-      }
+  // URL State
+  const searchQuery = searchParams.get('q') || '';
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
 
-      const data = await response.json();
-      const newFranchises = data.franchises || [];
-      
-      if (append) {
-        setFranchises(prev => [...prev, ...newFranchises]);
+  const ITEMS_PER_PAGE = 20;
+
+  // -- Helpers --
+
+  // Update URL helper
+  const updateUrl = useCallback((newPage: number, newQuery: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (newQuery) {
+      params.set('q', newQuery);
+      // Reset to page 1 on search change
+      if (newQuery !== searchQuery) {
+        params.set('page', '1');
       } else {
-        setFranchises(newFranchises);
+        params.set('page', newPage.toString());
       }
-      
-      setHasMore(data.pagination?.hasNextPage || false);
-      setTotalCount(data.pagination?.totalCount || 0);
-      
-      // Load hero franchises from first page only
-      if (page === 1 && data.allFranchises) {
-        setHeroFranchises(data.allFranchises.slice(0, 10)); // Top 10 for hero
-      }
-    } catch (err) {
-      console.error('Error loading franchises:', err);
-      setError('Failed to load franchises');
-    } finally {
-      setLoadingMore(false);
+    } else {
+      params.delete('q');
+      params.set('page', newPage.toString());
     }
-  }, [watchlistItems]);
 
-  // Pre-fetch page 2 in background after initial load
-  useEffect(() => {
-    if (hasMore && currentPage === 1) {
-      // Pre-fetch next page in background
-      const timer = setTimeout(() => {
-        loadFranchises(2, false).catch(() => {
-          // Silently fail - will load when user scrolls
-        });
-      }, 2000);
-      return () => clearTimeout(timer);
+    router.push(`${pathname}?${params.toString()}`, { scroll: true });
+  }, [pathname, router, searchParams, searchQuery]);
+
+  // -- Data Fetching --
+
+  // Ensure we have enough data for the current page
+  const ensureDataForPage = useCallback(async (targetPage: number) => {
+    // If searching, we rely on what we have (or filtered search results)
+    // Complex search pagination is tricky with client-side filter + server fetch
+    // For simplicity, search only filters loaded items for now as per previous design
+    if (searchQuery) return;
+
+    const requiredCount = targetPage * ITEMS_PER_PAGE;
+
+    // If we have enough items, or no more data to fetch, stop
+    if (allFranchises.length >= requiredCount || !hasMoreApiData) {
+      return;
     }
-  }, [hasMore, currentPage, loadFranchises]);
 
-  // Infinite scroll observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore) {
-          const nextPage = currentPage + 1;
-          setCurrentPage(nextPage);
-          loadFranchises(nextPage, true);
+    setIsLoading(true);
+
+    try {
+      let currentBuffer = [...allFranchises];
+      let nextApiPage = apiPageToFetch;
+      let canFetchMore = hasMoreApiData;
+
+      // Keep fetching API pages until we fill the buffer or run out
+      while (currentBuffer.length < requiredCount && canFetchMore) {
+        const res = await fetch(`/api/franchises?page=${nextApiPage}`);
+        if (!res.ok) break;
+
+        const data = await res.json();
+        const newFranchises: FranchiseCardType[] = data.franchises;
+
+        // Filter unique
+        const existingIds = new Set(currentBuffer.map(f => f.collection.id));
+        const uniqueNew = newFranchises.filter(f => !existingIds.has(f.collection.id));
+
+        currentBuffer = [...currentBuffer, ...uniqueNew];
+        nextApiPage++;
+
+        if (!data.hasMore || newFranchises.length === 0) {
+          canFetchMore = false;
         }
-      },
-      { threshold: 0.1 }
-    );
-
-    const currentTarget = observerTarget.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
-
-    return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
       }
-    };
-  }, [hasMore, loadingMore, currentPage, loadFranchises]);
 
-  if (error) {
-    return (
-      <main className="min-h-screen bg-netflix-black flex items-center justify-center px-4">
-        <div className="text-center max-w-lg">
-          <p className="text-red-400 mb-4">{error}</p>
-          <button
-            onClick={() => {
-              setError(null);
-              setCurrentPage(1);
-              loadFranchises(1, false);
-            }}
-            className="px-6 py-2 bg-primary hover:bg-primary-dark text-white rounded-md font-semibold transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      </main>
+      setAllFranchises(currentBuffer);
+      setApiPageToFetch(nextApiPage);
+      setHasMoreApiData(canFetchMore);
+
+    } catch (error) {
+      console.error('Error buffering franchises:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [allFranchises, apiPageToFetch, hasMoreApiData, searchQuery]);
+
+  // -- Effects --
+
+  // Whenever page changes, ensure we have data
+  useEffect(() => {
+    ensureDataForPage(currentPage);
+  }, [currentPage, ensureDataForPage]);
+
+
+  // -- Render Logic --
+
+  // 1. Filter full buffer if searching
+  const filteredBuffer = useMemo(() => {
+    if (!searchQuery.trim()) return allFranchises;
+    const q = searchQuery.toLowerCase();
+    return allFranchises.filter(f =>
+      f.collection.name.toLowerCase().includes(q) ||
+      f.collection.overview?.toLowerCase().includes(q)
     );
-  }
+  }, [allFranchises, searchQuery]);
 
-  const hasFranchises = franchises.length > 0 || heroFranchises.length > 0;
+  // 2. Slice for current page
+  // If searching, we just show all results or implement search pagination (showing all for simplicity/UX)
+  // If not searching, we do strict pagination
+  const currentItems = useMemo(() => {
+    if (searchQuery) return filteredBuffer; // Show all matches (or could paginated search matches)
+
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return filteredBuffer.slice(start, end);
+  }, [filteredBuffer, currentPage, searchQuery]);
+
+  // 3. Determine if there is a next page
+  const hasNextPage = useMemo(() => {
+    if (searchQuery) return false; // Search shows all on one page
+
+    // If we have more items in buffer than shown OR we can fetch more from API
+    const shownCount = currentPage * ITEMS_PER_PAGE;
+    return allFranchises.length > shownCount || hasMoreApiData;
+  }, [searchQuery, currentPage, allFranchises.length, hasMoreApiData]);
+
+
+  // Handle Handlers
+  const handleNext = () => {
+    if (!hasNextPage || isLoading) return;
+    updateUrl(currentPage + 1, searchQuery);
+  };
+
+  const handlePrev = () => {
+    if (currentPage <= 1 || isLoading) return;
+    updateUrl(currentPage - 1, searchQuery);
+  };
+
+  const handleSearch = (q: string) => {
+    updateUrl(1, q);
+  };
+
+  const clearSearch = () => {
+    updateUrl(1, '');
+  };
+
+  // Prevent hydration mismatch
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
 
   return (
     <main className="min-h-screen bg-netflix-black">
       <div className="px-4 md:px-12 py-8 md:py-12">
         {/* Page Header */}
         <div className="mb-8 md:mb-12">
-          <h1 className="font-display text-4xl md:text-6xl text-white mb-2 tracking-wide">
-            ALL FRANCHISES
-          </h1>
-          <p className="text-gray-400 text-lg">
-            Explore complete movie universes and collections
-          </p>
-          {totalCount > 0 && (
-            <p className="text-gray-500 text-sm mt-2">
-              {totalCount} franchises available
-            </p>
-          )}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div>
+              <h1 className="font-display text-4xl md:text-6xl text-white mb-3 tracking-wide">
+                FRANCHISES
+              </h1>
+              <p className="text-gray-400 text-lg">
+                Explore complete movie universes and collections
+              </p>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative w-full md:w-96">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search discovered franchises..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="w-full pl-12 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/10"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Hero Carousel - Show top franchises */}
-        {heroFranchises.length > 0 && (
-          <div className="mb-12">
-            <FranchiseHero franchises={heroFranchises} />
+        {/* Results Info */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2 text-gray-400">
+            <Film className="w-5 h-5" />
+            <span>
+              {searchQuery
+                ? `${filteredBuffer.length} result${filteredBuffer.length !== 1 ? 's' : ''}`
+                : `Page ${currentPage} (${currentItems.length} items)`
+              }
+            </span>
+          </div>
+        </div>
+
+        {/* Loading State Overlay (only when strictly waiting for data to fill page) */}
+        {isLoading && currentItems.length === 0 && (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-12 h-12 text-primary animate-spin" />
           </div>
         )}
 
         {/* Franchises Grid */}
-        {hasFranchises ? (
-          <>
-            <FranchiseGrid 
-              franchises={franchises} 
-              title="All Franchises"
-            />
+        {currentItems.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {currentItems.map((franchise, index) => (
+              <div
+                key={franchise.collection.id}
+                className="animate-fade-in-up"
+                style={{ animationDelay: `${Math.min(index * 50, 500)}ms` }}
+              >
+                <FranchiseCard
+                  franchise={franchise}
+                  priority={index < 6}
+                />
+              </div>
+            ))}
+          </div>
+        ) : !isLoading && (
+          <div className="text-center py-20 bg-white/5 rounded-2xl border border-white/10">
+            <Film className="w-16 h-16 mx-auto mb-4 text-gray-600" />
+            <p className="text-gray-400 text-lg mb-2">
+              {searchQuery ? 'No franchises match your search' : 'No franchises found'}
+            </p>
+          </div>
+        )}
 
-            {/* Infinite Scroll Trigger */}
-            <div ref={observerTarget} className="h-20 flex items-center justify-center mt-8">
-              {loadingMore && (
-                <div className="flex items-center gap-3 text-gray-400">
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                  <span>Loading more franchises...</span>
-                </div>
-              )}
-              {!hasMore && franchises.length > 0 && (
-                <p className="text-gray-500 text-sm">
-                  You've reached the end! {franchises.length} franchises loaded.
-                </p>
-              )}
+        {/* Pagination Controls (Hidden during search) */}
+        {!searchQuery && (
+          <div className="flex items-center justify-center gap-4 mt-12">
+            <button
+              onClick={handlePrev}
+              disabled={currentPage <= 1 || isLoading}
+              className={`
+                flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all
+                ${currentPage <= 1 || isLoading
+                  ? 'bg-white/5 text-gray-600 cursor-not-allowed'
+                  : 'bg-white/10 text-white hover:bg-primary hover:text-white hover:scale-105 active:scale-95'
+                }
+              `}
+            >
+              <ChevronLeft className="w-5 h-5" />
+              Previous
+            </button>
+
+            <div className="flex items-center gap-2">
+              <span className="px-4 py-2 rounded-lg bg-white/5 text-gray-400 border border-white/10 font-mono">
+                Page {currentPage}
+              </span>
             </div>
-          </>
-        ) : (
-          <div className="text-center py-20">
-            <p className="text-gray-400 text-lg mb-4">
-              No franchises found.
-            </p>
-            <p className="text-gray-500 text-sm">
-              Discovering franchises from TMDB...
-            </p>
+
+            <button
+              onClick={handleNext}
+              disabled={!hasNextPage || isLoading}
+              className={`
+                flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all
+                ${!hasNextPage || isLoading
+                  ? 'bg-white/5 text-gray-600 cursor-not-allowed'
+                  : 'bg-white/10 text-white hover:bg-primary hover:text-white hover:scale-105 active:scale-95'
+                }
+              `}
+            >
+              {isLoading && currentItems.length > 0 && <Loader2 className="w-4 h-4 animate-spin" />}
+              Next
+              <ChevronRight className="w-5 h-5" />
+            </button>
           </div>
         )}
       </div>

@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Film, Play } from 'lucide-react';
+import { Film, Star, ChevronRight } from 'lucide-react';
 import { FranchiseCard as FranchiseCardType } from '@/types';
 
 interface FranchiseCardProps {
@@ -11,19 +11,22 @@ interface FranchiseCardProps {
 }
 
 export default function FranchiseCard({ franchise, priority = false }: FranchiseCardProps) {
-  const { collection, userHasMovies, movieCount, userMovieCount } = franchise;
-  // Use smaller image sizes for grid cards - they're displayed smaller so don't need full resolution
+  const { collection, movieCount } = franchise;
+
+  // Use optimized image sizes
   const backdropUrl = collection.backdrop_path
-    ? `https://image.tmdb.org/t/p/w780${collection.backdrop_path}` // Reduced from w1280 to w780 (~60% smaller)
+    ? `https://image.tmdb.org/t/p/w780${collection.backdrop_path}`
     : null;
-  const posterUrl = collection.poster_path
-    ? `https://image.tmdb.org/t/p/w342${collection.poster_path}` // Reduced from w500 to w342 for smaller overlay
-    : null;
+
+  // Calculate average rating from movies
+  const avgRating = collection.parts.length > 0
+    ? collection.parts.reduce((sum, m) => sum + (m.vote_average || 0), 0) / collection.parts.length
+    : 0;
 
   return (
     <Link
       href={`/franchise/${collection.id}`}
-      className="group relative block aspect-video rounded-xl overflow-hidden bg-netflix-dark shadow-card hover:shadow-card-hover transition-all duration-300 hover:scale-[1.02]"
+      className="group relative block aspect-video rounded-2xl overflow-hidden bg-netflix-dark transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-primary/20"
     >
       {/* Backdrop Image */}
       {backdropUrl ? (
@@ -31,73 +34,64 @@ export default function FranchiseCard({ franchise, priority = false }: Franchise
           src={backdropUrl}
           alt={collection.name}
           fill
-          className="object-cover transition-transform duration-500 group-hover:scale-110"
+          className="object-cover transition-transform duration-700 group-hover:scale-110"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           loading={priority ? 'eager' : 'lazy'}
           priority={priority}
           quality={85}
-          unoptimized={false}
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-netflix-gray to-netflix-dark" />
       )}
 
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-transparent to-transparent" />
+      {/* Gradient Overlays for readability */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-80" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
+
+      {/* Glassmorphism border on hover */}
+      <div className="absolute inset-0 rounded-2xl border border-white/0 group-hover:border-white/20 transition-all duration-500" />
+
+      {/* Glow effect on hover */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-t from-primary/10 to-transparent" />
 
       {/* Content */}
-      <div className="absolute inset-0 flex flex-col justify-end p-6">
+      <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-6">
+        {/* Rating Badge - Top Right */}
+        {avgRating > 0 && (
+          <div className="absolute top-4 right-4 flex items-center gap-1 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded-full border border-white/10">
+            <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+            <span className="text-white text-sm font-semibold">{avgRating.toFixed(1)}</span>
+          </div>
+        )}
+
         {/* Franchise Name */}
-        <h3 className="text-white font-bold text-2xl md:text-3xl mb-3 drop-shadow-2xl z-10">
+        <h3 className="text-white font-bold text-xl md:text-2xl mb-2 drop-shadow-lg line-clamp-2 group-hover:text-primary-light transition-colors duration-300">
           {collection.name}
         </h3>
 
         {/* Stats Row */}
-        <div className="flex items-center gap-4 mb-3 z-10">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-1.5 text-gray-300">
             <Film className="w-4 h-4 text-primary" />
-            <span className="text-white/90 text-sm font-medium">
+            <span className="text-sm font-medium">
               {movieCount} {movieCount === 1 ? 'Movie' : 'Movies'}
             </span>
           </div>
-          
-          {userHasMovies && (
-            <div className="px-2 py-1 bg-primary/20 border border-primary/40 rounded text-xs text-primary font-semibold">
-              You have {userMovieCount}/{movieCount}
-            </div>
-          )}
         </div>
 
         {/* Overview (truncated) */}
         {collection.overview && (
-          <p className="text-gray-300 text-sm line-clamp-2 mb-4 drop-shadow-lg z-10">
+          <p className="text-gray-400 text-sm line-clamp-2 mb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             {collection.overview}
           </p>
         )}
 
-        {/* Play Button - appears on hover */}
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
-          <div className="inline-flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-semibold text-sm hover:bg-gray-200 transition-colors">
-            <Play className="w-4 h-4 fill-black" />
-            <span>Explore Franchise</span>
-          </div>
+        {/* CTA - appears on hover */}
+        <div className="flex items-center gap-2 text-primary font-semibold text-sm opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+          <span>Explore Collection</span>
+          <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
         </div>
       </div>
-
-      {/* Poster overlay (top-right corner) */}
-      {posterUrl && (
-        <div className="absolute top-4 right-4 w-16 h-24 rounded-md overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
-          <Image
-            src={posterUrl}
-            alt={collection.name}
-            fill
-            className="object-cover"
-            sizes="64px"
-            loading="lazy"
-          />
-        </div>
-      )}
     </Link>
   );
 }

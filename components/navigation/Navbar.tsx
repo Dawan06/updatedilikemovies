@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useUser, SignOutButton } from '@clerk/nextjs';
-import { 
-  Search, Home, Bookmark, Film, LogOut, 
-  Upload, Menu, X, ChevronDown, LogIn, Grid3x3
+import {
+  Search, Home, Bookmark, Film, LogOut,
+  Upload, Menu, X, ChevronDown, LogIn, Grid3x3, Sparkles
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
+import MovieWizard from '@/components/wizard/MovieWizard';
 
 export default function Navbar() {
   const { user, isSignedIn, isLoaded } = useUser();
@@ -16,6 +17,7 @@ export default function Navbar() {
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -54,12 +56,17 @@ export default function Navbar() {
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
-  const navLinks = [
+  const allNavLinks = [
     { href: '/', label: 'Home', icon: Home },
     { href: '/browse', label: 'Browse', icon: Grid3x3 },
-    { href: '/my-list', label: 'My List', icon: Bookmark },
+    { href: '/my-list', label: 'My List', icon: Bookmark, requiresAuth: true },
     { href: '/franchise', label: 'Franchise', icon: Film },
   ];
+
+  // Filter nav links based on auth status - hide My List when not signed in
+  const navLinks = isLoaded
+    ? allNavLinks.filter(link => !link.requiresAuth || isSignedIn)
+    : allNavLinks.filter(link => !link.requiresAuth);
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -68,20 +75,19 @@ export default function Navbar() {
 
   return (
     <>
-      <nav 
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isScrolled 
-            ? 'bg-netflix-black/95 backdrop-blur-md shadow-lg' 
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
+            ? 'bg-netflix-black/95 backdrop-blur-md shadow-lg'
             : 'bg-gradient-to-b from-black/80 to-transparent'
-        }`}
+          }`}
       >
         <div className="max-w-[1920px] mx-auto px-4 md:px-8 lg:px-12">
           <div className="flex items-center justify-between h-[68px]">
             {/* Left Section: Logo + Nav Links */}
             <div className="flex items-center gap-8">
               {/* Logo */}
-              <Link 
-                href="/" 
+              <Link
+                href="/"
                 className="flex items-center gap-2 flex-shrink-0 transition-transform duration-300 hover:scale-105"
               >
                 <Image
@@ -102,16 +108,15 @@ export default function Navbar() {
                 {navLinks.map((link) => {
                   const Icon = link.icon;
                   const active = isActive(link.href);
-                  
+
                   return (
                     <Link
                       key={link.href}
                       href={link.href}
-                      className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        active 
-                          ? 'text-white' 
+                      className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${active
+                          ? 'text-white'
                           : 'text-gray-300 hover:text-white hover:bg-white/10'
-                      }`}
+                        }`}
                     >
                       <Icon className="w-4 h-4" />
                       <span>{link.label}</span>
@@ -127,6 +132,16 @@ export default function Navbar() {
 
             {/* Right Section: Search + Profile */}
             <div className="flex items-center gap-3">
+              {/* AI Wizard Button */}
+              <button
+                onClick={() => setIsWizardOpen(true)}
+                className={`p-2.5 rounded-lg transition-all duration-300 group ${isWizardOpen ? 'bg-primary text-white' : 'text-gray-300 hover:text-white hover:bg-white/10'
+                  }`}
+                aria-label="AI Wizard"
+              >
+                <Sparkles className={`w-5 h-5 ${isWizardOpen ? 'animate-pulse' : 'group-hover:text-primary transition-colors'}`} />
+              </button>
+
               {/* Search - Improved UI */}
               <div className="relative">
                 {!isSearchOpen ? (
@@ -151,7 +166,7 @@ export default function Navbar() {
                           // If on browse page, preserve filter params
                           const params = new URLSearchParams();
                           params.set('search', searchQuery);
-                          
+
                           if (pathname === '/browse') {
                             // Preserve existing filter params
                             const mediaType = searchParams.get('media_type');
@@ -161,7 +176,7 @@ export default function Navbar() {
                             const ratingMin = searchParams.get('rating_min');
                             const language = searchParams.get('language');
                             const sortBy = searchParams.get('sort_by');
-                            
+
                             if (mediaType && mediaType !== 'all') params.set('media_type', mediaType);
                             if (genres) params.set('genres', genres);
                             if (yearFrom) params.set('year_from', yearFrom);
@@ -170,7 +185,7 @@ export default function Navbar() {
                             if (language) params.set('language', language);
                             if (sortBy && sortBy !== 'popularity.desc') params.set('sort_by', sortBy);
                           }
-                          
+
                           globalThis.location.href = `/browse?${params.toString()}`;
                         }
                         if (e.key === 'Escape') {
@@ -223,9 +238,8 @@ export default function Navbar() {
                             {user?.firstName?.[0] || user?.emailAddresses[0]?.emailAddress[0].toUpperCase() || 'U'}
                           </div>
                         )}
-                        <ChevronDown className={`w-4 h-4 text-gray-300 transition-transform duration-200 hidden md:block ${
-                          isProfileOpen ? 'rotate-180' : ''
-                        }`} />
+                        <ChevronDown className={`w-4 h-4 text-gray-300 transition-transform duration-200 hidden md:block ${isProfileOpen ? 'rotate-180' : ''
+                          }`} />
                       </button>
 
                       {/* Dropdown Menu */}
@@ -294,27 +308,26 @@ export default function Navbar() {
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
           {/* Backdrop */}
-          <div 
+          <div
             className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-fade-in"
             onClick={() => setIsMobileMenuOpen(false)}
           />
-          
+
           {/* Menu Panel */}
           <div className="absolute right-0 top-0 h-full w-64 bg-netflix-dark border-l border-white/10 animate-slide-in-right">
             <div className="pt-20 px-4">
               {navLinks.map((link, index) => {
                 const Icon = link.icon;
                 const active = isActive(link.href);
-                
+
                 return (
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all duration-200 ${
-                      active 
-                        ? 'bg-primary text-white' 
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all duration-200 ${active
+                        ? 'bg-primary text-white'
                         : 'text-gray-300 hover:text-white hover:bg-white/10'
-                    }`}
+                      }`}
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
                     <Icon className="w-5 h-5" />
@@ -322,6 +335,19 @@ export default function Navbar() {
                   </Link>
                 );
               })}
+
+              {/* Wizard Button Mobile */}
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsWizardOpen(true);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-200"
+              >
+                <Sparkles className="w-5 h-5 text-primary" />
+                <span className="font-medium">AI Wizard</span>
+              </button>
+
               {!isSignedIn && (
                 <Link
                   href="/sign-in"
@@ -338,6 +364,9 @@ export default function Navbar() {
 
       {/* Spacer for fixed navbar */}
       <div className="h-[68px]" />
+
+      {/* AI Movie Wizard Modal */}
+      <MovieWizard isOpen={isWizardOpen} onClose={() => setIsWizardOpen(false)} />
     </>
   );
 }
