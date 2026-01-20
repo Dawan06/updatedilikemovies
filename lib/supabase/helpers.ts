@@ -42,7 +42,7 @@ export async function getUserWatchlist(userId: string) {
   // Only select columns we actually need - reduces payload by ~60%
   const { data, error } = await supabase
     .from('watchlist')
-    .select('id, tmdb_id, media_type, status, title, added_at')
+    .select('id, user_id, tmdb_id, media_type, status, title, added_at')
     .eq('user_id', userId)
     .order('added_at', { ascending: false })
     .limit(100); // Reasonable limit - UI won't show more than this anyway

@@ -163,6 +163,7 @@ export interface WatchlistItem {
   user_id: string;
   tmdb_id: number;
   media_type: MediaType;
+  title?: string;
   added_at: string;
   status: 'watching' | 'completed' | 'plan_to_watch';
 }
