@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { tmdbClient } from '@/lib/tmdb/client';
+import { cachedTmdbClient } from '@/lib/tmdb/cached-client';
 
 // Allow ISR for TMDB data - no need to force dynamic
 export const revalidate = 3600; // Cache for 1 hour
@@ -19,16 +19,16 @@ export async function GET(request: NextRequest) {
 
     switch (type) {
       case 'trending':
-        results = await tmdbClient.getTrendingMovies(page);
+        results = await cachedTmdbClient.getTrendingMovies(page);
         break;
       case 'popular':
-        results = await tmdbClient.getPopularMovies(page);
+        results = await cachedTmdbClient.getPopularMovies(page);
         break;
       case 'top_rated':
-        results = await tmdbClient.getTopRatedMovies(page);
+        results = await cachedTmdbClient.getTopRatedMovies(page);
         break;
       default:
-        results = await tmdbClient.getTrendingMovies(page);
+        results = await cachedTmdbClient.getTrendingMovies(page);
     }
 
     return NextResponse.json(results, { headers: CACHE_HEADERS });

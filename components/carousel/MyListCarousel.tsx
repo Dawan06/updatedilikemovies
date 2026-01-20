@@ -53,7 +53,11 @@ export default function MyListCarousel() {
 
         if (response.ok) {
           const data = await response.json();
-          setItems(data.items || []);
+          const fetchedItems = data.items || [];
+          
+          // Randomize the order so it's not always the same movies
+          const shuffled = [...fetchedItems].sort(() => Math.random() - 0.5);
+          setItems(shuffled);
         }
       } catch (error) {
         console.error('Error loading my list:', error);

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { 
   Bookmark, Plus, Upload, Film, Tv, Loader2, Search, X, 
-  Pencil, Trash2, CheckSquare, SortAsc, Calendar, Type, ChevronLeft, ChevronRight, LogIn,
+  Trash2, CheckSquare, SortAsc, Calendar, Type, ChevronLeft, ChevronRight, LogIn,
   PlayCircle, CheckCircle2, Clock
 } from 'lucide-react';
 import MovieCard from '@/components/movie-card/MovieCard';
@@ -51,8 +51,7 @@ export default function MyListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
   
-  // Edit and select mode state
-  const [editMode, setEditMode] = useState(false);
+  // Select mode state (removed editMode)
   const [selectMode, setSelectMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
@@ -263,8 +262,7 @@ export default function MyListPage() {
     }
   };
 
-  const exitModes = () => {
-    setEditMode(false);
+  const exitSelectMode = () => {
     setSelectMode(false);
     setSelectedItems(new Set());
   };
@@ -338,175 +336,163 @@ export default function MyListPage() {
 
   return (
     <main className="min-h-screen bg-netflix-black px-4 md:px-12 py-12">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <h1 className="font-display text-4xl md:text-5xl text-white tracking-wide">MY LIST</h1>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Edit Mode Toggle */}
-          <button
-            onClick={() => { setEditMode(!editMode); setSelectMode(false); setSelectedItems(new Set()); }}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              editMode 
-                ? 'bg-primary text-white' 
-                : 'glass hover:bg-white/10 text-white'
-            }`}
-          >
-            <Pencil className="w-4 h-4" />
-            <span className="hidden sm:inline">Edit</span>
-          </button>
+      {/* Header Section - Clean and Minimal */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="font-display text-4xl md:text-5xl text-white tracking-wide">MY LIST</h1>
           
-          {/* Select Mode Toggle */}
-          <button
-            onClick={() => { setSelectMode(!selectMode); setEditMode(false); setSelectedItems(new Set()); }}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              selectMode 
-                ? 'bg-primary text-white' 
-                : 'glass hover:bg-white/10 text-white'
-            }`}
-          >
-            <CheckSquare className="w-4 h-4" />
-            <span className="hidden sm:inline">Select</span>
-          </button>
-          
-          <Link 
-            href="/import"
-            className="inline-flex items-center gap-2 px-4 py-2 glass hover:bg-white/10 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Upload className="w-4 h-4" />
-            <span className="hidden sm:inline">Import</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Search Bar */}
-      <div className="mb-6">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search your list..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-10 py-2.5 bg-netflix-dark border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
-          />
-          {searchQuery && (
+          {/* Action Buttons - Minimal */}
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-              aria-label="Clear search"
+              onClick={() => { setSelectMode(!selectMode); setSelectedItems(new Set()); }}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                selectMode 
+                  ? 'bg-primary text-white' 
+                  : 'glass text-gray-300 hover:text-white hover:bg-white/10'
+              }`}
             >
-              <X className="w-5 h-5" />
+              <CheckSquare className="w-4 h-4" />
+              <span className="hidden sm:inline">Select</span>
             </button>
-          )}
-        </div>
-      </div>
-
-      {/* Filters and Sort */}
-      <div className="flex flex-col lg:flex-row gap-4 mb-8">
-        {/* Type Filters - Horizontal Tabs */}
-        <div className="flex items-center gap-1 bg-netflix-dark/50 p-1 rounded-lg border border-white/10">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              filter === 'all' 
-                ? 'bg-primary text-white shadow-lg' 
-                : 'text-gray-300 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            All ({items.length})
-          </button>
-          <button
-            onClick={() => setFilter('movie')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-1.5 ${
-              filter === 'movie' 
-                ? 'bg-primary text-white shadow-lg' 
-                : 'text-gray-300 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Film className="w-4 h-4" />
-            Movies ({movieCount})
-          </button>
-          <button
-            onClick={() => setFilter('tv')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-1.5 ${
-              filter === 'tv' 
-                ? 'bg-primary text-white shadow-lg' 
-                : 'text-gray-300 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Tv className="w-4 h-4" />
-            TV ({tvCount})
-          </button>
+            <Link 
+              href="/import"
+              className="inline-flex items-center gap-2 px-4 py-2 glass text-gray-300 hover:text-white hover:bg-white/10 rounded-lg text-sm font-medium transition-all"
+            >
+              <Upload className="w-4 h-4" />
+              <span className="hidden sm:inline">Import</span>
+            </Link>
+          </div>
         </div>
 
-        {/* Status Filters - Horizontal Tabs */}
-        <div className="flex items-center gap-1 bg-netflix-dark/50 p-1 rounded-lg border border-white/10">
-          <button
-            onClick={() => setStatusFilter('all')}
-            className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
-              statusFilter === 'all' 
-                ? 'bg-primary text-white shadow-lg' 
-                : 'text-gray-300 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setStatusFilter('watching')}
-            className={`px-3 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-1.5 ${
-              statusFilter === 'watching' 
-                ? 'bg-primary text-white shadow-lg' 
-                : 'text-gray-300 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <PlayCircle className="w-4 h-4" />
-            Watching ({watchingCount})
-          </button>
-          <button
-            onClick={() => setStatusFilter('completed')}
-            className={`px-3 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-1.5 ${
-              statusFilter === 'completed' 
-                ? 'bg-primary text-white shadow-lg' 
-                : 'text-gray-300 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            Completed ({completedCount})
-          </button>
-          <button
-            onClick={() => setStatusFilter('plan_to_watch')}
-            className={`px-3 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-1.5 ${
-              statusFilter === 'plan_to_watch' 
-                ? 'bg-primary text-white shadow-lg' 
-                : 'text-gray-300 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Clock className="w-4 h-4" />
-            Plan ({planToWatchCount})
-          </button>
-        </div>
-        
-        {/* Sort Dropdown */}
-        <div className="lg:ml-auto">
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortType)}
-            className="px-4 py-2 bg-netflix-dark border border-white/10 rounded-lg text-white text-sm font-medium focus:outline-none focus:border-primary cursor-pointer hover:border-white/20 transition-colors"
-          >
-            <option value="added">Sort: Date Added</option>
-            <option value="title">Sort: Title (A-Z)</option>
-            <option value="year">Sort: Year (Newest)</option>
-          </select>
+        {/* Search and Filters - Organized Row */}
+        <div className="space-y-4">
+          {/* Search Bar */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search your list..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-10 py-2.5 bg-netflix-dark border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                aria-label="Clear search"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+
+          {/* Filters and Sort - Compact Layout */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Media Type Filter */}
+            <div className="flex items-center gap-1 bg-netflix-dark/50 p-1 rounded-lg border border-white/10">
+              <button
+                onClick={() => setFilter('all')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  filter === 'all' 
+                    ? 'bg-primary text-white' 
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilter('movie')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
+                  filter === 'movie' 
+                    ? 'bg-primary text-white' 
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Film className="w-3.5 h-3.5" />
+                Movies
+              </button>
+              <button
+                onClick={() => setFilter('tv')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
+                  filter === 'tv' 
+                    ? 'bg-primary text-white' 
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Tv className="w-3.5 h-3.5" />
+                TV
+              </button>
+            </div>
+
+            {/* Status Filter */}
+            <div className="flex items-center gap-1 bg-netflix-dark/50 p-1 rounded-lg border border-white/10">
+              <button
+                onClick={() => setStatusFilter('all')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  statusFilter === 'all' 
+                    ? 'bg-primary text-white' 
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setStatusFilter('watching')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
+                  statusFilter === 'watching' 
+                    ? 'bg-primary text-white' 
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <PlayCircle className="w-3.5 h-3.5" />
+                Watching
+              </button>
+              <button
+                onClick={() => setStatusFilter('completed')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
+                  statusFilter === 'completed' 
+                    ? 'bg-primary text-white' 
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Completed
+              </button>
+              <button
+                onClick={() => setStatusFilter('plan_to_watch')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
+                  statusFilter === 'plan_to_watch' 
+                    ? 'bg-primary text-white' 
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                Plan
+              </button>
+            </div>
+
+            {/* Sort Dropdown */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortType)}
+              className="px-3 py-1.5 bg-netflix-dark border border-white/10 rounded-lg text-white text-xs font-medium focus:outline-none focus:border-primary cursor-pointer hover:border-white/20 transition-colors"
+            >
+              <option value="added">Date Added</option>
+              <option value="title">Title (A-Z)</option>
+              <option value="year">Year (Newest)</option>
+            </select>
+          </div>
         </div>
       </div>
 
       {/* Select Mode Actions Bar */}
       {selectMode && (
-        <div className="flex items-center justify-between gap-4 mb-6 p-4 glass rounded-lg border border-white/10">
+        <div className="flex items-center justify-between gap-4 mb-6 p-4 glass rounded-lg border border-white/10 animate-fade-in">
           <div className="flex items-center gap-4">
             <button
               onClick={handleSelectAll}
-              className="text-sm text-primary hover:underline"
+              className="text-sm text-primary hover:underline font-medium"
             >
               {selectedItems.size === filteredItems.length ? 'Deselect All' : 'Select All'}
             </button>
@@ -516,7 +502,7 @@ export default function MyListPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={exitModes}
+              onClick={exitSelectMode}
               className="px-4 py-2 text-sm text-gray-300 hover:text-white transition-colors"
             >
               Cancel
@@ -534,21 +520,6 @@ export default function MyListPage() {
               Delete ({selectedItems.size})
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Edit Mode Info Bar */}
-      {editMode && (
-        <div className="flex items-center justify-between gap-4 mb-6 p-4 glass rounded-lg border border-white/10">
-          <span className="text-gray-300 text-sm">
-            Click the X on any card to remove it from your list
-          </span>
-          <button
-            onClick={exitModes}
-            className="px-4 py-2 text-sm text-primary hover:underline"
-          >
-            Done
-          </button>
         </div>
       )}
 
@@ -570,12 +541,10 @@ export default function MyListPage() {
                 key={`${item.media_type}-${item.tmdb_id}`}
                 item={item.details}
                 mediaType={item.media_type}
-                enableHover={!editMode && !selectMode}
+                enableHover={!selectMode}
                 showCheckbox={selectMode}
                 isSelected={selectedItems.has(`${item.tmdb_id}-${item.media_type}`)}
                 onSelect={handleSelect}
-                showDeleteButton={editMode}
-                onDelete={handleDelete}
               />
             ))}
           </div>

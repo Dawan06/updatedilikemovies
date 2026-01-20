@@ -1,4 +1,4 @@
-import { tmdbClient } from '@/lib/tmdb/client';
+import { cachedTmdbClient } from '@/lib/tmdb/cached-client';
 import { TVShowDetails, SeasonDetails } from '@/types';
 import dynamic from 'next/dynamic';
 import SeasonSelector from './SeasonSelector';
@@ -22,8 +22,8 @@ export const revalidate = 3600;
 
 async function getSeasonData(tvId: number, seasons: TVShowDetails['seasons']): Promise<SeasonDetails[]> {
   const validSeasons = seasons.filter(s => s.season_number > 0);
-  const seasonPromises = validSeasons.map(s => 
-    tmdbClient.getTVSeasonDetails(tvId, s.season_number).catch(() => null)
+  const seasonPromises = validSeasons.map(s =>
+    cachedTmdbClient.getTVSeasonDetails(tvId, s.season_number).catch(() => null)
   );
   const results = await Promise.all(seasonPromises);
   return results.filter((s): s is SeasonDetails => s !== null);
@@ -31,17 +31,17 @@ async function getSeasonData(tvId: number, seasons: TVShowDetails['seasons']): P
 
 export default async function TVDetailPage({ params }: { params: { readonly id: string } }) {
   const tvId = Number.parseInt(params.id, 10);
-  
+
   const [show, credits, videos, images, similar, recommendations, reviews] = await Promise.all([
-    tmdbClient.getTVDetails(tvId),
-    tmdbClient.getTVCredits(tvId).catch(() => null),
-    tmdbClient.getTVVideos(tvId).catch(() => ({ results: [] })),
-    tmdbClient.getTVImages(tvId).catch(() => ({ backdrops: [], posters: [] })),
-    tmdbClient.getSimilarTV(tvId).catch(() => ({ results: [] })),
-    tmdbClient.getTVRecommendations(tvId).catch(() => ({ results: [] })),
-    tmdbClient.getTVReviews(tvId).catch(() => ({ results: [], total_results: 0 })),
+    cachedTmdbClient.getTVDetails(tvId),
+    cachedTmdbClient.getTVCredits(tvId).catch(() => null),
+    cachedTmdbClient.getTVVideos(tvId).catch(() => ({ results: [] })),
+    cachedTmdbClient.getTVImages(tvId).catch(() => ({ backdrops: [], posters: [] })),
+    cachedTmdbClient.getSimilarTV(tvId).catch(() => ({ results: [] })),
+    cachedTmdbClient.getTVRecommendations(tvId).catch(() => ({ results: [] })),
+    cachedTmdbClient.getTVReviews(tvId).catch(() => ({ results: [], total_results: 0 })),
   ]);
-  
+
   const seasonData = await getSeasonData(tvId, show.seasons);
   const cast = credits?.cast?.slice(0, 20) || [];
   const creator = show.created_by?.[0];
@@ -87,10 +87,10 @@ export default async function TVDetailPage({ params }: { params: { readonly id: 
               <ExpandableOverview overview={show.overview} />
 
               {/* Seasons */}
-              <SeasonSelector 
-                tvId={tvId} 
+              <SeasonSelector
+                tvId={tvId}
                 showName={show.name}
-                seasons={seasonData} 
+                seasons={seasonData}
               />
 
               {/* Cast */}
@@ -118,16 +118,16 @@ export default async function TVDetailPage({ params }: { params: { readonly id: 
 
               {/* Photos */}
               {(images.backdrops.length > 0 || images.posters.length > 0) && (
-                <PhotoGallery 
-                  backdrops={images.backdrops} 
-                  posters={images.posters} 
-                  title={show.name} 
+                <PhotoGallery
+                  backdrops={images.backdrops}
+                  posters={images.posters}
+                  title={show.name}
                 />
               )}
 
               {/* Reviews */}
               {reviews.results.length > 0 && (
-                <ReviewsSection 
+                <ReviewsSection
                   reviews={reviews.results}
                   totalResults={reviews.total_results}
                 />
@@ -135,7 +135,7 @@ export default async function TVDetailPage({ params }: { params: { readonly id: 
 
               {/* Recommendations */}
               {(similar.results.length > 0 || recommendations.results.length > 0) && (
-                <SimilarContent 
+                <SimilarContent
                   items={similar.results}
                   recommendations={recommendations.results}
                   mediaType="tv"

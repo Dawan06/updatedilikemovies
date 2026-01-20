@@ -38,14 +38,24 @@ const nextConfig = {
       },
     ];
   },
-  // Optimize for Netlify
+
+  // PHASE 3: Static generation optimization
+  output: 'standalone', // Optimize for Netlify deployment
+
+  // Optimize for Netlify and enable static generation
   experimental: {
     optimizePackageImports: ['lucide-react', '@clerk/nextjs'],
   },
+
   // Performance optimizations
   swcMinify: true,
   compress: true,
   poweredByHeader: false,
+
+  // Generate unique build IDs for proper cache invalidation
+  generateBuildId: async () => {
+    return `build-${Date.now()}`;
+  },
 };
 
 module.exports = nextConfig;

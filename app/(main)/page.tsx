@@ -1,4 +1,4 @@
-import { tmdbClient } from '@/lib/tmdb/client';
+import { cachedTmdbClient } from '@/lib/tmdb/cached-client';
 import dynamic from 'next/dynamic';
 import UserHeroBanner from '@/components/hero-banner/UserHeroBanner';
 import MovieCard from '@/components/movie-card/MovieCard';
@@ -28,15 +28,15 @@ export const revalidate = 3600;
 // Generate metadata with hero image preload
 export async function generateMetadata(): Promise<Metadata> {
   // Fetch trending movies to get hero image
-  const trendingMovies = await tmdbClient.getTrendingMovies(1);
+  const trendingMovies = await cachedTmdbClient.getTrendingMovies(1);
   const heroMovie = trendingMovies.results[0];
-  
+
   if (!heroMovie?.backdrop_path) {
     return {};
   }
 
   const heroImageUrl = `https://image.tmdb.org/t/p/w780${heroMovie.backdrop_path}`;
-  
+
   return {
     other: {
       'hero-image-preload': heroImageUrl,
@@ -45,12 +45,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  // Fetch all content data in parallel
+  // Fetch all content data in parallel (now with caching!)
   const [trendingMovies, trendingTV, topRatedMovies, popularMovies] = await Promise.all([
-    tmdbClient.getTrendingMovies(1),
-    tmdbClient.getTrendingTV(1),
-    tmdbClient.getTopRatedMovies(1),
-    tmdbClient.getPopularMovies(1),
+    cachedTmdbClient.getTrendingMovies(1),
+    cachedTmdbClient.getTrendingTV(1),
+    cachedTmdbClient.getTopRatedMovies(1),
+    cachedTmdbClient.getPopularMovies(1),
   ]);
 
   // Get top 5 trending movies for hero slideshow
@@ -58,8 +58,8 @@ export default async function HomePage() {
 
   // Fetch trailers for hero movies in parallel
   const trailerResults = await Promise.all(
-    heroMovies.map(movie => 
-      tmdbClient.getMovieVideos(movie.id).catch(() => ({ results: [] }))
+    heroMovies.map(movie =>
+      cachedTmdbClient.getMovieVideos(movie.id).catch(() => ({ results: [] }))
     )
   );
 
@@ -79,20 +79,22 @@ export default async function HomePage() {
     if (userId) {
       // Fetch watchlist items server-side
       const watchlistItems = await getUserWatchlist(userId);
-      
+
       if (watchlistItems.length > 0) {
-        // Get first 5 items for hero
-        const heroWatchlistItems = watchlistItems.slice(0, 5);
-        
+        // Shuffle watchlist items so hero shows different movies each time
+        const shuffled = [...watchlistItems].sort(() => Math.random() - 0.5);
+        // Get first 5 shuffled items for hero
+        const heroWatchlistItems = shuffled.slice(0, 5);
+
         // Fetch details and trailers in parallel
         const [detailsResults, ...trailerResults] = await Promise.all([
           Promise.all(
             heroWatchlistItems.map(async (item) => {
               try {
                 if (item.media_type === 'movie') {
-                  return await tmdbClient.getMovieDetails(item.tmdb_id);
+                  return await cachedTmdbClient.getMovieDetails(item.tmdb_id);
                 } else {
-                  return await tmdbClient.getTVDetails(item.tmdb_id);
+                  return await cachedTmdbClient.getTVDetails(item.tmdb_id);
                 }
               } catch {
                 return null;
@@ -101,21 +103,21 @@ export default async function HomePage() {
           ),
           ...heroWatchlistItems.map(item =>
             (item.media_type === 'movie'
-              ? tmdbClient.getMovieVideos(item.tmdb_id)
-              : tmdbClient.getTVVideos(item.tmdb_id)
+              ? cachedTmdbClient.getMovieVideos(item.tmdb_id)
+              : cachedTmdbClient.getTVVideos(item.tmdb_id)
             ).catch(() => ({ results: [] }))
           ),
         ]);
 
         const validDetails = detailsResults.filter(Boolean) as (Movie | TVShow)[];
-        
+
         if (validDetails.length > 0) {
           userHeroItems = validDetails.slice(0, 5);
-          
+
           // Determine primary media type
           const movieCount = heroWatchlistItems.slice(0, validDetails.length).filter(i => i.media_type === 'movie').length;
           userMediaType = movieCount > validDetails.length / 2 ? 'movie' : 'tv';
-          
+
           // Process trailer results
           trailerResults.forEach((trailerData, index) => {
             const item = validDetails[index];
@@ -135,12 +137,12 @@ export default async function HomePage() {
     <main className="min-h-screen bg-netflix-black">
       {/* Hero Banner - Shows user's list if available, otherwise trending */}
       {heroMovies.length > 0 && (
-        <UserHeroBanner 
+        <UserHeroBanner
           initialItems={userHeroItems || heroMovies}
           initialMediaType={(userMediaType || 'movie') as 'movie' | 'tv'}
           initialTrailers={Object.keys(userTrailers).length > 0 ? userTrailers : trailersMap}
-          fallbackItems={heroMovies} 
-          fallbackMediaType="movie" 
+          fallbackItems={heroMovies}
+          fallbackMediaType="movie"
           fallbackTrailers={trailersMap}
         />
       )}

@@ -1,4 +1,4 @@
-import { tmdbClient } from '@/lib/tmdb/client';
+import { cachedTmdbClient } from '@/lib/tmdb/cached-client';
 import dynamic from 'next/dynamic';
 import CastGrid from '@/components/detail/CastGrid';
 import DetailSidebar from '@/components/detail/DetailSidebar';
@@ -20,20 +20,20 @@ export const revalidate = 3600;
 
 export default async function MovieDetailPage({ params }: { params: { readonly id: string } }) {
   const movieId = Number.parseInt(params.id, 10);
-  
+
   const [movie, credits, videos, images, similar, recommendations, reviews] = await Promise.all([
-    tmdbClient.getMovieDetails(movieId),
-    tmdbClient.getMovieCredits(movieId).catch(() => null),
-    tmdbClient.getMovieVideos(movieId).catch(() => ({ results: [] })),
-    tmdbClient.getMovieImages(movieId).catch(() => ({ backdrops: [], posters: [] })),
-    tmdbClient.getSimilarMovies(movieId).catch(() => ({ results: [] })),
-    tmdbClient.getMovieRecommendations(movieId).catch(() => ({ results: [] })),
-    tmdbClient.getMovieReviews(movieId).catch(() => ({ results: [], total_results: 0 })),
+    cachedTmdbClient.getMovieDetails(movieId),
+    cachedTmdbClient.getMovieCredits(movieId).catch(() => null),
+    cachedTmdbClient.getMovieVideos(movieId).catch(() => ({ results: [] })),
+    cachedTmdbClient.getMovieImages(movieId).catch(() => ({ backdrops: [], posters: [] })),
+    cachedTmdbClient.getSimilarMovies(movieId).catch(() => ({ results: [] })),
+    cachedTmdbClient.getMovieRecommendations(movieId).catch(() => ({ results: [] })),
+    cachedTmdbClient.getMovieReviews(movieId).catch(() => ({ results: [], total_results: 0 })),
   ]);
 
   const director = credits?.crew?.find((c: any) => c.job === 'Director');
   const cast = credits?.cast?.slice(0, 20) || [];
-  
+
   const trailer = videos.results.find(
     (v) => v.site === 'YouTube' && v.type === 'Trailer' && v.official
   ) || videos.results.find(
@@ -92,16 +92,16 @@ export default async function MovieDetailPage({ params }: { params: { readonly i
 
               {/* Photos */}
               {(images.backdrops.length > 0 || images.posters.length > 0) && (
-                <PhotoGallery 
-                  backdrops={images.backdrops} 
-                  posters={images.posters} 
-                  title={movie.title} 
+                <PhotoGallery
+                  backdrops={images.backdrops}
+                  posters={images.posters}
+                  title={movie.title}
                 />
               )}
 
               {/* Reviews */}
               {reviews.results.length > 0 && (
-                <ReviewsSection 
+                <ReviewsSection
                   reviews={reviews.results}
                   totalResults={reviews.total_results}
                 />
@@ -109,7 +109,7 @@ export default async function MovieDetailPage({ params }: { params: { readonly i
 
               {/* Recommendations */}
               {(similar.results.length > 0 || recommendations.results.length > 0) && (
-                <SimilarContent 
+                <SimilarContent
                   items={similar.results}
                   recommendations={recommendations.results}
                   mediaType="movie"

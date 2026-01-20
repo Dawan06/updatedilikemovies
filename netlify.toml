@@ -41,6 +41,24 @@
     Pragma = "no-cache"
     Vary = "Accept-Encoding"
 
+# PHASE 3: Aggressive caching for static movie/TV pages
+# These are pregenerated at build time, safe to cache for 24 hours
+[[headers]]
+  for = "/movie/*"
+  [headers.values]
+    Cache-Control = "public, s-maxage=86400, stale-while-revalidate=604800"
+    # Cache for 24 hours, serve stale for 7 days while revalidating
+
+[[headers]]
+  for = "/tv/*"
+  [headers.values]
+    Cache-Control = "public, s-maxage=86400, stale-while-revalidate=604800"
+
+[[headers]]
+  for = "/franchise/*"
+  [headers.values]
+    Cache-Control = "public, s-maxage=3600, stale-while-revalidate=86400"
+
 [[headers]]
   for = "/_next/image"
   [headers.values]

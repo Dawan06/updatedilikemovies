@@ -1,4 +1,4 @@
-import { tmdbClient } from '@/lib/tmdb/client';
+import { cachedTmdbClient } from '@/lib/tmdb/cached-client';
 import { vidsrcClient } from '@/lib/vidsrc/vidsrc-client';
 import VideoPlayerWrapper from '@/components/video-player/VideoPlayerWrapper';
 import WatchPageClient from './WatchPageClient';
@@ -28,17 +28,17 @@ export default async function WatchPage({
   let totalSeasons = 0;
 
   if (params.type === 'movie') {
-    const movie = await tmdbClient.getMovieDetails(tmdbId);
+    const movie = await cachedTmdbClient.getMovieDetails(tmdbId);
     title = movie.title;
   } else {
     const [show, seasonData] = await Promise.all([
-      tmdbClient.getTVDetails(tmdbId),
-      season ? tmdbClient.getTVSeasonDetails(tmdbId, season).catch(() => null) : null
+      cachedTmdbClient.getTVDetails(tmdbId),
+      season ? cachedTmdbClient.getTVSeasonDetails(tmdbId, season).catch(() => null) : null
     ]);
-    
+
     title = show.name;
     totalSeasons = show.number_of_seasons;
-    
+
     if (seasonData) {
       episodes = seasonData.episodes;
       const currentEp = episodes.find(e => e.episode_number === episode);

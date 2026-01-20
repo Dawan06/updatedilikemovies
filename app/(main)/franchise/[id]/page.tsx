@@ -1,4 +1,4 @@
-import { tmdbClient } from '@/lib/tmdb/client';
+import { cachedTmdbClient } from '@/lib/tmdb/cached-client';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Star, Film, Clock, Award } from 'lucide-react';
@@ -27,7 +27,7 @@ export default async function FranchiseDetailPage({
   }
 
   try {
-    const collection = await tmdbClient.getCollectionDetails(collectionId);
+    const collection = await cachedTmdbClient.getCollectionDetails(collectionId);
 
     // Sort movies by release date (chronological order)
     const sortedMovies = [...collection.parts].sort((a, b) => {

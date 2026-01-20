@@ -1,4 +1,4 @@
-import { tmdbClient } from '@/lib/tmdb/client';
+import { cachedTmdbClient } from '@/lib/tmdb/cached-client';
 import MovieCard from '@/components/movie-card/MovieCard';
 import SearchPagination from './SearchPagination';
 import { MediaItem } from '@/types';
@@ -9,8 +9,8 @@ import { Film } from 'lucide-react';
 
 async function getGenres() {
   const [movieGenresData, tvGenresData] = await Promise.all([
-    tmdbClient.getMovieGenres().catch(() => ({ genres: [] })),
-    tmdbClient.getTVGenres().catch(() => ({ genres: [] })),
+    cachedTmdbClient.getMovieGenres().catch(() => ({ genres: [] })),
+    cachedTmdbClient.getTVGenres().catch(() => ({ genres: [] })),
   ]);
   return {
     movieGenres: movieGenresData.genres || [],
@@ -114,9 +114,9 @@ export default async function SearchResults({ query, page, filters }: SearchResu
   const shouldSearchCollections = page === 1 && (!filters?.media_type || filters.media_type === 'all');
 
   const [results, collectionData, { movieGenres, tvGenres }] = await Promise.all([
-    tmdbClient.searchMulti(query, page),
+    cachedTmdbClient.searchMulti(query, page),
     shouldSearchCollections
-      ? tmdbClient.searchCollections(query).catch(() => ({ results: [], total_pages: 0, total_results: 0 }))
+      ? cachedTmdbClient.searchCollections(query).catch(() => ({ results: [], total_pages: 0, total_results: 0 }))
       : Promise.resolve({ results: [], total_pages: 0, total_results: 0 }),
     getGenres()
   ]);

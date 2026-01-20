@@ -1,4 +1,4 @@
-import { tmdbClient } from '@/lib/tmdb/client';
+import { cachedTmdbClient } from '@/lib/tmdb/cached-client';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import dynamic from 'next/dynamic';
@@ -8,8 +8,8 @@ import SearchResults from './SearchResults';
 const DiscoverClientDynamic = dynamic(() => import('./DiscoverClient'), { ssr: false });
 
 interface BrowsePageProps {
-  searchParams: { 
-    search?: string; 
+  searchParams: {
+    search?: string;
     page?: string;
     media_type?: string;
     genres?: string;
@@ -34,10 +34,10 @@ async function BrowseContent({ searchParams }: BrowsePageProps) {
       language: searchParams.language,
       sort_by: searchParams.sort_by,
     };
-    
+
     return (
-      <SearchResults 
-        query={searchParams.search} 
+      <SearchResults
+        query={searchParams.search}
         page={parseInt(searchParams.page || '1', 10)}
         filters={filters}
       />
@@ -46,8 +46,8 @@ async function BrowseContent({ searchParams }: BrowsePageProps) {
 
   // Otherwise show filtered discover results
   const [movieGenresData, tvGenresData] = await Promise.all([
-    tmdbClient.getMovieGenres().catch(() => ({ genres: [] })),
-    tmdbClient.getTVGenres().catch(() => ({ genres: [] })),
+    cachedTmdbClient.getMovieGenres().catch(() => ({ genres: [] })),
+    cachedTmdbClient.getTVGenres().catch(() => ({ genres: [] })),
   ]);
 
   const movieGenres = movieGenresData.genres || [];
