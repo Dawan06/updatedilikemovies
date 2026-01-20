@@ -72,7 +72,7 @@ export default function FranchisePageClient({ franchises: initialFranchises }: F
     try {
       let currentBuffer = [...allFranchises];
       let nextApiPage = apiPageToFetch;
-      let canFetchMore = hasMoreApiData;
+      let canFetchMore: boolean = hasMoreApiData;
 
       // Keep fetching API pages until we fill the buffer or run out
       while (currentBuffer.length < requiredCount && canFetchMore) {
