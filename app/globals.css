@@ -176,6 +176,7 @@ body {
   
   .animate-fade-in-up {
     animation: fadeInUp var(--transition-slow) ease-out forwards;
+    will-change: transform, opacity;
   }
   
   .animate-fade-in-down {
@@ -184,14 +185,17 @@ body {
   
   .animate-scale-in {
     animation: scaleIn var(--transition-base) ease-out forwards;
+    will-change: transform, opacity;
   }
   
   .animate-slide-in-left {
     animation: slideInLeft var(--transition-slow) ease-out forwards;
+    will-change: transform, opacity;
   }
   
   .animate-slide-in-right {
     animation: slideInRight var(--transition-slow) ease-out forwards;
+    will-change: transform, opacity;
   }
   
   .animate-shimmer {
@@ -203,18 +207,22 @@ body {
     );
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
+    will-change: background-position;
   }
   
   .animate-ken-burns {
     animation: ken-burns 20s ease-out forwards;
+    will-change: transform;
   }
   
   .animate-pulse-glow {
     animation: pulse-glow 2s ease-in-out infinite;
+    will-change: box-shadow;
   }
   
   .animate-float {
     animation: float 3s ease-in-out infinite;
+    will-change: transform;
   }
   
   /* Animation delays */
@@ -289,6 +297,7 @@ body {
     opacity: 0;
     transform: translateY(30px);
     transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    will-change: opacity, transform;
   }
 
   .scroll-fade-in.visible {

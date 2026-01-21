@@ -23,17 +23,30 @@ export default function ContentCarousel({ title, seeAllHref, children }: Content
     setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
   };
 
+  // Simple throttle to avoid running checkScroll too often on main thread
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    
+
+    let ticking = false;
+
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          checkScroll();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
     checkScroll();
-    el.addEventListener('scroll', checkScroll, { passive: true });
-    globalThis.addEventListener('resize', checkScroll);
-    
+    el.addEventListener('scroll', onScroll, { passive: true });
+    globalThis.addEventListener('resize', onScroll);
+
     return () => {
-      el.removeEventListener('scroll', checkScroll);
-      globalThis.removeEventListener('resize', checkScroll);
+      el.removeEventListener('scroll', onScroll);
+      globalThis.removeEventListener('resize', onScroll);
     };
   }, []);
 
@@ -47,7 +60,7 @@ export default function ContentCarousel({ title, seeAllHref, children }: Content
   };
 
   return (
-    <section 
+    <section
       className="relative group/section mb-8"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -59,7 +72,7 @@ export default function ContentCarousel({ title, seeAllHref, children }: Content
             {title}
           </h2>
           {seeAllHref && (
-            <Link 
+            <Link
               href={seeAllHref}
               className="flex items-center text-sm text-primary opacity-0 group-hover/title:opacity-100 transition-opacity duration-300"
             >
@@ -74,9 +87,8 @@ export default function ContentCarousel({ title, seeAllHref, children }: Content
       <div className="relative">
         {/* Left Arrow - Netflix style: gradient fade with centered icon */}
         <div
-          className={`absolute left-0 top-0 bottom-4 w-12 md:w-14 z-30 flex items-center justify-center transition-opacity duration-300 ${
-            canScrollLeft && isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
+          className={`absolute left-0 top-0 bottom-4 w-12 md:w-14 z-30 flex items-center justify-center transition-opacity duration-300 ${canScrollLeft && isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-transparent" />
           <button
@@ -99,9 +111,8 @@ export default function ContentCarousel({ title, seeAllHref, children }: Content
 
         {/* Right Arrow - Netflix style: gradient fade with centered icon */}
         <div
-          className={`absolute right-0 top-0 bottom-4 w-12 md:w-14 z-30 flex items-center justify-center transition-opacity duration-300 ${
-            canScrollRight && isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
+          className={`absolute right-0 top-0 bottom-4 w-12 md:w-14 z-30 flex items-center justify-center transition-opacity duration-300 ${canScrollRight && isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
         >
           <div className="absolute inset-0 bg-gradient-to-l from-black/90 via-black/60 to-transparent" />
           <button

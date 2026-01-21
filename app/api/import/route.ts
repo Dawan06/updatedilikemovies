@@ -25,10 +25,10 @@ export async function POST(request: NextRequest) {
     }
 
     const fileContent = await file.text();
-    
+
     // Debug: log file info
     console.log(`Import request: source=${source}, fileSize=${file.size}, lines=${fileContent.split('\n').length}`);
-    
+
     let matches: Array<{
       tmdbId: number | null;
       mediaType: 'movie' | 'tv';
@@ -37,14 +37,14 @@ export async function POST(request: NextRequest) {
     if (source === 'imdb') {
       const items = await parseIMDbCSV(fileContent);
       console.log(`Parsed ${items.length} IMDb items`);
-      
+
       if (items.length === 0) {
         return NextResponse.json(
           { error: 'No valid items found in CSV. Make sure you exported your watchlist from IMDb correctly.' },
           { status: 400 }
         );
       }
-      
+
       const matched = await matchIMDbToTMDB(items);
       matches = matched.map((m) => ({
         tmdbId: m.tmdbId,
@@ -53,14 +53,14 @@ export async function POST(request: NextRequest) {
     } else if (source === 'letterboxd') {
       const items = await parseLetterboxdCSV(fileContent);
       console.log(`Parsed ${items.length} Letterboxd items`);
-      
+
       if (items.length === 0) {
         return NextResponse.json(
           { error: 'No valid items found in CSV. Make sure you exported your data from Letterboxd correctly.' },
           { status: 400 }
         );
       }
-      
+
       const matched = await matchLetterboxdToTMDB(items);
       matches = matched.map((m) => ({
         tmdbId: m.tmdbId,
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
     // Filter out items that couldn't be matched
     const validMatches = matches.filter((m) => m.tmdbId !== null);
-    
+
     console.log(`Matched ${validMatches.length} of ${matches.length} items to TMDB`);
 
     // Return matched items - client will store them in localStorage
@@ -92,8 +92,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error importing watchlist:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to import watchlist. Please check your CSV file format.' },
+      {
+        error: `Import failed: ${errorMessage}`,
+        details: error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     );
   }

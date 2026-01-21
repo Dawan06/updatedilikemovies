@@ -1,5 +1,6 @@
 import Navbar from '@/components/navigation/Navbar';
 import WatchlistSyncNotification from '@/components/watchlist/WatchlistSyncNotification';
+import Footer from '@/components/layout/Footer';
 import { WatchlistProvider } from '@/lib/contexts/WatchlistContext';
 
 export default function MainLayout({
@@ -9,10 +10,13 @@ export default function MainLayout({
 }) {
   return (
     <WatchlistProvider>
-      <div className="min-h-screen bg-netflix-black overflow-x-hidden">
+      <div className="min-h-screen bg-netflix-black overflow-x-hidden flex flex-col">
         <Navbar />
         <WatchlistSyncNotification />
-        {children}
+        <div className="flex-1">
+          {children}
+        </div>
+        <Footer />
       </div>
     </WatchlistProvider>
   );

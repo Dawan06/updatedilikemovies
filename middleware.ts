@@ -27,6 +27,7 @@ export const config = {
     '/api/watchlist/:path*',
     '/api/viewing-progress/:path*',
     '/api/continue-watching/:path*',
+    '/api/import',  // ✅ Fixing missing route
 
     // Public routes no longer run middleware!
     // ✅ /movie/[id] - static, no auth check
