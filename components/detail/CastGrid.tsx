@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import Image from 'next/image';
 import { Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useScrollAnimation } from '@/lib/hooks/useScrollAnimation';
+import { createProgressiveImageProps } from '@/lib/progressive-image-loader';
 
 interface CastMember {
   id: number;
@@ -22,6 +23,7 @@ export default function CastGrid({ cast }: CastGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [fullQualityReady, setFullQualityReady] = useState<Record<number, boolean>>({});
   const { ref, isVisible } = useScrollAnimation();
 
   if (!cast || cast.length === 0) return null;
@@ -78,23 +80,36 @@ export default function CastGrid({ cast }: CastGridProps) {
         onScroll={checkScroll}
         className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-2"
       >
-        {cast.map((person, index) => (
-          <div
-            key={person.id}
-            className="flex-shrink-0 w-32 md:w-40 group"
-            style={{ animationDelay: `${index * 50}ms` }}
-            onMouseEnter={() => setHoveredId(person.id)}
-            onMouseLeave={() => setHoveredId(null)}
-          >
-            <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-netflix-dark mb-2 transition-all duration-300 group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary/50">
-              {person.profile_path ? (
-                <Image
-                  src={`https://image.tmdb.org/t/p/w300${person.profile_path}`}
-                  alt={person.name}
-                  fill
-                  className="object-cover transition-transform duration-300"
-                  sizes="(max-width: 768px) 128px, 160px"
-                />
+        {cast.map((person, index) => {
+          const progressiveProps = createProgressiveImageProps(person.profile_path, 'w200');
+          return (
+            <div
+              key={person.id}
+              className="flex-shrink-0 w-32 md:w-40 group"
+              style={{ animationDelay: `${index * 50}ms` }}
+              onMouseEnter={() => setHoveredId(person.id)}
+              onMouseLeave={() => setHoveredId(null)}
+            >
+              <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-netflix-dark mb-2 transition-all duration-300 group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary/50">
+                {person.profile_path ? (
+                  <Image
+                    src={fullQualityReady[person.id] ? progressiveProps.fullSrc : progressiveProps.placeholderSrc}
+                    alt={person.name}
+                    fill
+                    className="object-cover transition-transform duration-300"
+                    sizes="(max-width: 768px) 128px, 160px"
+                    quality={fullQualityReady[person.id] ? 60 : 20}
+                    onLoad={() => {
+                      if (!fullQualityReady[person.id] && progressiveProps.fullSrc) {
+                        // Preload full quality image in background
+                        const preloadImg = document.createElement('img');
+                        preloadImg.onload = () => {
+                          setFullQualityReady(prev => ({ ...prev, [person.id]: true }));
+                        };
+                        preloadImg.src = progressiveProps.fullSrc;
+                      }
+                    }}
+                  />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <Users className="w-12 h-12 text-gray-600" />
@@ -120,7 +135,8 @@ export default function CastGrid({ cast }: CastGridProps) {
               <p className="text-gray-500 text-xs truncate">{person.character}</p>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

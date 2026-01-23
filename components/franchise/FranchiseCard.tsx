@@ -4,6 +4,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Film, Star, ChevronRight } from 'lucide-react';
 import { FranchiseCard as FranchiseCardType } from '@/types';
+import { useState } from 'react';
+import { createProgressiveImageProps } from '@/lib/progressive-image-loader';
 
 interface FranchiseCardProps {
   readonly franchise: FranchiseCardType;
@@ -12,11 +14,10 @@ interface FranchiseCardProps {
 
 export default function FranchiseCard({ franchise, priority = false }: FranchiseCardProps) {
   const { collection, movieCount } = franchise;
+  const [backdropReady, setBackdropReady] = useState(false);
 
   // Use optimized image sizes
-  const backdropUrl = collection.backdrop_path
-    ? `https://image.tmdb.org/t/p/w780${collection.backdrop_path}`
-    : null;
+  const progressiveProps = createProgressiveImageProps(collection.backdrop_path, 'w1280');
 
   // Calculate average rating from movies
   const avgRating = collection.parts.length > 0
@@ -29,16 +30,23 @@ export default function FranchiseCard({ franchise, priority = false }: Franchise
       className="group relative block aspect-video rounded-2xl overflow-hidden bg-netflix-dark transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-primary/20"
     >
       {/* Backdrop Image */}
-      {backdropUrl ? (
+      {progressiveProps.fullSrc ? (
         <Image
-          src={backdropUrl}
+          src={backdropReady ? progressiveProps.fullSrc : progressiveProps.placeholderSrc}
           alt={collection.name}
           fill
           className="object-cover transition-transform duration-700 group-hover:scale-110"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           loading={priority ? 'eager' : 'lazy'}
           priority={priority}
-          quality={85}
+          quality={backdropReady ? 70 : 20}
+          onLoad={() => {
+            setBackdropReady(true);
+            if (progressiveProps.fullSrc) {
+              const preloadImg = document.createElement('img');
+              preloadImg.src = progressiveProps.fullSrc;
+            }
+          }}
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-netflix-gray to-netflix-dark" />

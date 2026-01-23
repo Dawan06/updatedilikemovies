@@ -44,8 +44,7 @@ export async function getUserWatchlist(userId: string) {
     .from('watchlist')
     .select('id, user_id, tmdb_id, media_type, status, title, added_at')
     .eq('user_id', userId)
-    .order('added_at', { ascending: false })
-    .limit(100); // Reasonable limit - UI won't show more than this anyway
+    .order('added_at', { ascending: false });
 
   if (error) {
     console.error('[getUserWatchlist] Supabase error details:', {
@@ -54,7 +53,7 @@ export async function getUserWatchlist(userId: string) {
       details: error.details,
       hint: error.hint,
       userId,
-      query: 'SELECT id, tmdb_id, media_type, status, title, added_at FROM watchlist WHERE user_id = $1 ORDER BY added_at DESC LIMIT 100',
+      query: 'SELECT id, tmdb_id, media_type, status, title, added_at FROM watchlist WHERE user_id = $1 ORDER BY added_at DESC',
     });
     throw new Error(`Failed to fetch watchlist: ${error.message}${error.details ? ` (${error.details})` : ''}${error.hint ? ` Hint: ${error.hint}` : ''}`);
   }
@@ -175,6 +174,59 @@ export async function removeFromWatchlist(
   if (error) {
     throw new Error(`Failed to remove from watchlist: ${error.message}`);
   }
+}
+
+export async function bulkRemoveFromWatchlist(
+  userId: string,
+  items: Array<{ tmdbId: number; mediaType: 'movie' | 'tv' }>
+) {
+  if (items.length === 0) return 0;
+
+  const supabase = createServiceClient();
+
+  // Build arrays of tmdb_ids and media_types for batch filtering
+  const tmdbIds = items.map(item => item.tmdbId);
+  const mediaTypes = items.map(item => item.mediaType);
+
+  // Delete all matching items in one query using filters
+  // We need to handle multiple conditions - delete items where:
+  // (user_id = userId AND tmdb_id IN (...tmdbIds))
+  // But we also need to match mediaType - so we'll delete in batches by media type
+  let totalDeleted = 0;
+
+  // Delete movies first
+  const movieIds = items.filter(i => i.mediaType === 'movie').map(i => i.tmdbId);
+  if (movieIds.length > 0) {
+    const { error: deleteError, count } = await supabase
+      .from('watchlist')
+      .delete()
+      .eq('user_id', userId)
+      .eq('media_type', 'movie')
+      .in('tmdb_id', movieIds);
+
+    if (deleteError) {
+      throw new Error(`Failed to delete movies: ${deleteError.message}`);
+    }
+    totalDeleted += movieIds.length;
+  }
+
+  // Delete TV shows
+  const tvIds = items.filter(i => i.mediaType === 'tv').map(i => i.tmdbId);
+  if (tvIds.length > 0) {
+    const { error: deleteError, count } = await supabase
+      .from('watchlist')
+      .delete()
+      .eq('user_id', userId)
+      .eq('media_type', 'tv')
+      .in('tmdb_id', tvIds);
+
+    if (deleteError) {
+      throw new Error(`Failed to delete TV shows: ${deleteError.message}`);
+    }
+    totalDeleted += tvIds.length;
+  }
+
+  return totalDeleted;
 }
 
 export async function updateWatchlistStatus(

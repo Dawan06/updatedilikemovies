@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { createProgressiveImageProps } from '@/lib/progressive-image-loader';
 
 interface ImageItem {
   file_path: string;
@@ -19,6 +20,7 @@ interface PhotoGalleryProps {
 export default function PhotoGallery({ backdrops, posters, title }: PhotoGalleryProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [fullQualityReady, setFullQualityReady] = useState<Record<number, boolean>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -118,22 +120,36 @@ export default function PhotoGallery({ backdrops, posters, title }: PhotoGallery
         onScroll={checkScroll}
         className="flex gap-3 overflow-x-auto scrollbar-hide scroll-smooth pb-2"
       >
-        {images.map((img, index) => (
-          <button
-            key={img.file_path}
-            onClick={() => openLightbox(index)}
-            className="flex-shrink-0 relative aspect-video w-64 md:w-80 rounded-lg overflow-hidden group"
-          >
-            <Image
-              src={`https://image.tmdb.org/t/p/w780${img.file_path}`}
-              alt={`${title} photo ${index + 1}`}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
-              sizes="(max-width: 768px) 256px, 320px"
-            />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-          </button>
-        ))}
+        {images.map((img, index) => {
+          const progressiveProps = createProgressiveImageProps(img.file_path, 'w500');
+          return (
+            <button
+              key={img.file_path}
+              onClick={() => openLightbox(index)}
+              className="flex-shrink-0 relative aspect-video w-64 md:w-80 rounded-lg overflow-hidden group"
+            >
+              <Image
+                src={fullQualityReady[index] ? progressiveProps.fullSrc : progressiveProps.placeholderSrc}
+                alt={`${title} photo ${index + 1}`}
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                sizes="(max-width: 768px) 256px, 320px"
+                quality={fullQualityReady[index] ? 65 : 20}
+                onLoad={() => {
+                  // Preload full quality on first load
+                  if (!fullQualityReady[index] && progressiveProps.fullSrc) {
+                    const preloadImg = document.createElement('img');
+                    preloadImg.onload = () => {
+                      setFullQualityReady(prev => ({ ...prev, [index]: true }));
+                    };
+                    preloadImg.src = progressiveProps.fullSrc;
+                  }
+                }}
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+            </button>
+          );
+        })}
       </div>
 
       {/* Lightbox */}
@@ -158,13 +174,23 @@ export default function PhotoGallery({ backdrops, posters, title }: PhotoGallery
           </button>
 
           <div className="max-w-[90vw] max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
-            <Image
-              src={`https://image.tmdb.org/t/p/original${images[currentIndex].file_path}`}
-              alt={`${title} photo`}
-              width={images[currentIndex].width}
-              height={images[currentIndex].height}
-              className="max-w-full max-h-[85vh] object-contain rounded-lg"
-            />
+            {(() => {
+              const progressiveProps = createProgressiveImageProps(images[currentIndex].file_path, 'w1280');
+              return (
+                <Image
+                  src={progressiveProps.fullSrc}
+                  alt={`${title} photo`}
+                  width={images[currentIndex].width}
+                  height={images[currentIndex].height}
+                  quality={fullQualityReady[currentIndex] ? 75 : 20}
+                  className="max-w-full max-h-[85vh] object-contain rounded-lg transition-opacity duration-300"
+                  priority
+                  onLoad={() => {
+                    setFullQualityReady(prev => ({ ...prev, [currentIndex]: true }));
+                  }}
+                />
+              );
+            })()}
           </div>
 
           <button

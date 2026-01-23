@@ -182,7 +182,7 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
             {/* Backdrop Image (always present as fallback) */}
             {slide.item.backdrop_path && shouldLoad && (
               <Image
-                src={`https://image.tmdb.org/t/p/w780${slide.item.backdrop_path}`}
+                src={`https://image.tmdb.org/t/p/w1280${slide.item.backdrop_path}`}
                 alt={(slide.item as Movie).title || (slide.item as TVShow).name || ''}
                 fill
                 className={`object-cover transition-opacity duration-500 ${
@@ -190,7 +190,7 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
                 }`}
                 priority={index === 0}
                 sizes="100vw"
-                quality={75}
+                quality={70}
                 decoding="async"
               />
             )}

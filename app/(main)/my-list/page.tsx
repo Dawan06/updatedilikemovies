@@ -241,17 +241,43 @@ export default function MyListPage() {
   const handleBulkDelete = async () => {
     if (selectedItems.size === 0) return;
     
-    const deletePromises = Array.from(selectedItems).map(async (key) => {
-      const [id, type] = key.split('-');
-      return removeItem(parseInt(id), type as 'movie' | 'tv');
-    });
-    
-    await Promise.all(deletePromises);
-    setSelectedItems(new Set());
-    setSelectMode(false);
-    // Refresh watchlist
-    await refresh();
-    await loadWatchlistDetails();
+    try {
+      const items = Array.from(selectedItems).map((key) => {
+        const [id, type] = key.split('-');
+        return {
+          tmdbId: parseInt(id),
+          mediaType: type as 'movie' | 'tv'
+        };
+      });
+
+      console.log(`[MyList] Deleting ${items.length} items via bulk delete API`, { sample: items.slice(0, 3) });
+
+      const response = await fetch('/api/watchlist/bulk-delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ items }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || `Delete failed with status ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log(`[MyList] Successfully deleted ${result.deleted} items`);
+
+      setSelectedItems(new Set());
+      setSelectMode(false);
+      
+      // Refresh watchlist
+      await refresh();
+      await loadWatchlistDetails();
+    } catch (err) {
+      console.error('[MyList] Error in bulk delete:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete selected items');
+    }
   };
 
   const handleSelectAll = () => {

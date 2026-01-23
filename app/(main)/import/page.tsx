@@ -8,7 +8,7 @@ import { useWatchlist } from '@/lib/hooks/useWatchlist';
 
 export default function ImportPage() {
   const { isSignedIn, isLoaded: authLoaded } = useUser();
-  const { addItem, refresh } = useWatchlist();
+  const { refresh } = useWatchlist();
 
   // Show sign-in prompt for guests
   if (authLoaded && !isSignedIn) {
@@ -69,6 +69,19 @@ export default function ImportPage() {
   const [file, setFile] = useState<File | null>(null);
   const [source, setSource] = useState<'imdb' | 'letterboxd' | null>(null);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<{
+    type: string;
+    progress: number;
+    current: number;
+    total: number;
+    message: string;
+    added?: number;
+    skipped?: number;
+    failed?: number;
+    cached?: number;
+    itemsPerSecond?: number;
+    estimatedTimeRemaining?: number;
+  } | null>(null);
   const [result, setResult] = useState<{
     success: boolean;
     total?: number;
@@ -93,6 +106,7 @@ export default function ImportPage() {
     }
 
     setLoading(true);
+    setProgress(null);
     setResult(null);
 
     try {
@@ -100,79 +114,66 @@ export default function ImportPage() {
       formData.append('file', file);
       formData.append('source', source);
 
-      const response = await fetch('/api/import', {
+      const response = await fetch('/api/import/stream', {
         method: 'POST',
         body: formData,
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        setResult({ success: false, error: 'Failed to start import' });
+        setLoading(false);
+        return;
+      }
 
-      if (response.ok && data.success) {
-        // Save matched items to Supabase via batch API
-        const items = data.items || [];
-        
-        const batchResponse = await fetch('/api/watchlist', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items }),
-        });
+      // Read streaming response
+      const reader = response.body?.getReader();
+      if (!reader) {
+        setResult({ success: false, error: 'Failed to read response stream' });
+        setLoading(false);
+        return;
+      }
 
-        let added = 0;
-        let skipped = 0;
-        const batchData = await batchResponse.json();
-        
-        if (batchResponse.ok && batchData.success !== false) {
-          added = batchData.added || 0;
-          skipped = batchData.skipped || 0;
-          
-          // Show errors if any
-          if (batchData.errors && batchData.errors.length > 0) {
-            console.error('[Import] Batch import errors:', batchData.errors);
-            console.error('[Import] Sample error:', batchData.sampleError || batchData.errors[0]);
-          }
-        } else {
-          // Fallback to individual adds if batch fails
-          console.error('[Import] Batch request failed, falling back to individual adds');
-          for (const item of items) {
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
             try {
-              const success = await addItem(item.tmdb_id, item.media_type);
-              if (success) {
-                added++;
-              } else {
-                skipped++;
+              const data = JSON.parse(line.slice(6));
+              setProgress(data);
+
+              if (data.type === 'complete') {
+                setResult({
+                  success: true,
+                  total: data.total,
+                  matched: data.total,
+                  added: data.added || 0,
+                  skipped: data.skipped || 0,
+                  failed: data.failed || 0,
+                });
+                await refresh();
+                setLoading(false);
+              } else if (data.type === 'error') {
+                setResult({ success: false, error: data.message });
+                setLoading(false);
               }
-            } catch (error) {
-              console.error(`[Import] Error adding item ${item.tmdb_id}:`, error);
-              skipped++;
+            } catch (e) {
+              console.error('Failed to parse SSE message:', e);
             }
           }
         }
-
-        // Refresh watchlist to show updated data
-        await refresh();
-        
-        // Check if batch response had errors (all items failed to add)
-        const hasErrors = batchData.errorCount > 0 || (added === 0 && skipped === items.length && items.length > 0);
-        
-        setResult({
-          success: !hasErrors && added > 0,
-          total: data.total,
-          matched: data.matched,
-          added,
-          skipped,
-          failed: data.failed,
-          ...(hasErrors && {
-            error: batchData.error || `Failed to add items. ${batchData.errorCount || skipped} errors occurred. Check server console for details.`,
-            errorDetails: batchData.sampleError || batchData.errors?.[0]
-          })
-        });
-      } else {
-        setResult({ success: false, error: data.error || 'Import failed' });
       }
     } catch (error) {
       console.error('Import error:', error);
       setResult({ success: false, error: 'Failed to import watchlist' });
-    } finally {
       setLoading(false);
     }
   };
@@ -294,6 +295,84 @@ export default function ImportPage() {
               </>
             )}
           </button>
+
+          {/* Progress Bar */}
+          {progress && (
+            <div className="space-y-4 p-5 rounded-lg border border-white/10 bg-netflix-dark/50 animate-fade-in">
+              {/* Phase Indicator */}
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`flex-1 h-1 rounded-full ${progress.type === 'parsing' ? 'bg-primary' : 'bg-gray-700'}`} />
+                <div className={`flex-1 h-1 rounded-full ${progress.type === 'matching' ? 'bg-primary' : 'bg-gray-700'}`} />
+                <div className={`flex-1 h-1 rounded-full ${progress.type === 'saving' ? 'bg-primary' : 'bg-gray-700'}`} />
+              </div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex-1">
+                  <span className="text-sm font-semibold text-white block">{progress.message}</span>
+                  {progress.type === 'matching' && progress.cached !== undefined && progress.cached > 0 && (
+                    <span className="text-xs text-primary mt-1">
+                      ⚡ {progress.cached} items found in cache
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm text-gray-400 font-semibold">{Math.round(progress.progress)}%</span>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="w-full h-3 bg-black/50 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary to-primary-dark transition-all duration-300 ease-out rounded-full"
+                  style={{ width: `${progress.progress}%` }}
+                />
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                <div>
+                  <span className="text-gray-500 block mb-1">Progress</span>
+                  <div className="text-white font-semibold text-sm">
+                    {progress.current.toLocaleString()} / {progress.total.toLocaleString()}
+                  </div>
+                </div>
+                {progress.itemsPerSecond !== undefined && progress.itemsPerSecond > 0 && (
+                  <div>
+                    <span className="text-gray-500 block mb-1">Speed</span>
+                    <div className="text-white font-semibold text-sm">
+                      {progress.itemsPerSecond.toLocaleString()} items/sec
+                    </div>
+                  </div>
+                )}
+                {progress.estimatedTimeRemaining !== undefined && progress.estimatedTimeRemaining > 0 && (
+                  <div>
+                    <span className="text-gray-500 block mb-1">ETA</span>
+                    <div className="text-white font-semibold text-sm">
+                      {progress.estimatedTimeRemaining < 60 
+                        ? `${Math.round(progress.estimatedTimeRemaining)}s`
+                        : `${Math.round(progress.estimatedTimeRemaining / 60)}m`
+                      }
+                    </div>
+                  </div>
+                )}
+                {progress.added !== undefined && (
+                  <div>
+                    <span className="text-gray-500 block mb-1">Added</span>
+                    <div className="text-green-400 font-semibold text-sm">{progress.added.toLocaleString()}</div>
+                  </div>
+                )}
+                {progress.skipped !== undefined && progress.skipped > 0 && (
+                  <div>
+                    <span className="text-gray-500 block mb-1">Skipped</span>
+                    <div className="text-blue-400 font-semibold text-sm">{progress.skipped.toLocaleString()}</div>
+                  </div>
+                )}
+                {progress.failed !== undefined && progress.failed > 0 && (
+                  <div>
+                    <span className="text-gray-500 block mb-1">Failed</span>
+                    <div className="text-yellow-400 font-semibold text-sm">{progress.failed.toLocaleString()}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Results */}
           {result && (

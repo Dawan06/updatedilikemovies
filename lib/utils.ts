@@ -30,9 +30,22 @@ export function formatNumber(num: number): string {
   return num.toString();
 }
 
-export function getImageUrl(path: string | null, size: 'w200' | 'w300' | 'w500' | 'w780' | 'w1280' | 'original' = 'w300'): string {
+export function getImageUrl(path: string | null, size: 'w154' | 'w200' | 'w300' | 'w500' | 'w780' | 'w1280' | 'original' = 'w300'): string {
   if (!path) return '/placeholder-poster.png';
   return `https://image.tmdb.org/t/p/${size}${path}`;
+}
+
+export function getAdaptiveImageQuality(): number {
+  if (typeof window === 'undefined') return 75;
+  
+  const connection = (navigator as any).connection || (navigator as any).mozConnection;
+  if (!connection) return 75;
+  
+  const effectiveType = connection.effectiveType;
+  if (effectiveType === 'slow-2g' || effectiveType === '2g' || effectiveType === '3g') {
+    return 55;
+  }
+  return 75;
 }
 
 export function truncateText(text: string, maxLength: number): string {

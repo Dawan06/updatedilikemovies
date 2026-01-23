@@ -1,4 +1,5 @@
 import { tmdbClient } from '@/lib/tmdb/client';
+import { batchLookupLetterboxdMappings, batchInsertLetterboxdMappings } from '@/lib/supabase/tmdb-mappings';
 
 export interface LetterboxdItem {
   Title: string;
@@ -76,19 +77,80 @@ function parseCSVLine(line: string): string[] {
 }
 
 export async function matchLetterboxdToTMDB(
-  items: LetterboxdItem[]
+  items: LetterboxdItem[],
+  onProgress?: (current: number, total: number, cached: number) => void
 ): Promise<Array<{
   letterboxdItem: LetterboxdItem;
   tmdbId: number | null;
   mediaType: 'movie' | 'tv';
 }>> {
-  // Process in batches to avoid rate limiting
-  const batchSize = 5;
-  const results: Array<{ letterboxdItem: LetterboxdItem; tmdbId: number | null; mediaType: 'movie' | 'tv' }> = [];
+  if (items.length === 0) return [];
 
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    const batchResults = await Promise.all(
+  // Phase 1: Batch cache lookup
+  const cacheLookupItems = items.map(item => ({
+    title: item.Title,
+    year: item.Year ? parseInt(item.Year, 10) : null,
+    media_type: undefined as 'movie' | 'tv' | undefined,
+  }));
+
+  const cacheMap = await batchLookupLetterboxdMappings(cacheLookupItems);
+  let cacheHits = 0;
+
+  // Phase 2: Process items - use cache when available, otherwise match via API
+  const results: Array<{ letterboxdItem: LetterboxdItem; tmdbId: number | null; mediaType: 'movie' | 'tv' }> = [];
+  const itemsToMatch: LetterboxdItem[] = [];
+  const cacheResults: Array<{ letterboxdItem: LetterboxdItem; tmdbId: number | null; mediaType: 'movie' | 'tv' }> = [];
+
+  // Separate cached items from items needing API calls
+  for (const item of items) {
+    const year = item.Year ? parseInt(item.Year, 10) : null;
+    // Try both movie and tv in cache
+    const movieKey = `${item.Title.toLowerCase().trim()}:${year || 'null'}:movie`;
+    const tvKey = `${item.Title.toLowerCase().trim()}:${year || 'null'}:tv`;
+    
+    const cachedMovie = cacheMap.get(movieKey);
+    const cachedTV = cacheMap.get(tvKey);
+    
+    if (cachedMovie) {
+      cacheHits++;
+      cacheResults.push({
+        letterboxdItem: item,
+        tmdbId: cachedMovie.tmdb_id,
+        mediaType: 'movie',
+      });
+      if (onProgress) {
+        onProgress(cacheResults.length, items.length, cacheHits);
+      }
+      continue;
+    }
+    
+    if (cachedTV) {
+      cacheHits++;
+      cacheResults.push({
+        letterboxdItem: item,
+        tmdbId: cachedTV.tmdb_id,
+        mediaType: 'tv',
+      });
+      if (onProgress) {
+        onProgress(cacheResults.length, items.length, cacheHits);
+      }
+      continue;
+    }
+    
+    itemsToMatch.push(item);
+  }
+
+  results.push(...cacheResults);
+
+  // Phase 3: Match remaining items via API in large parallel batches
+  const batchSize = 100; // Increased from 25
+  const newMappings: Array<{ title: string; year: number | null; tmdb_id: number; media_type: 'movie' | 'tv' }> = [];
+
+  for (let i = 0; i < itemsToMatch.length; i += batchSize) {
+    const batch = itemsToMatch.slice(i, i + batchSize);
+    
+    // Process batch in parallel - no delays
+    const batchResults = await Promise.allSettled(
       batch.map(async (item) => {
         try {
           return await matchSingleItem(item);
@@ -98,12 +160,38 @@ export async function matchLetterboxdToTMDB(
         }
       })
     );
-    results.push(...batchResults);
-    
-    // Small delay between batches
-    if (i + batchSize < items.length) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Process results
+    for (const result of batchResults) {
+      if (result.status === 'fulfilled') {
+        const match = result.value;
+        results.push(match);
+        
+        // Collect new mappings for cache
+        if (match.tmdbId) {
+          const year = match.letterboxdItem.Year ? parseInt(match.letterboxdItem.Year, 10) : null;
+          newMappings.push({
+            title: match.letterboxdItem.Title,
+            year: year,
+            tmdb_id: match.tmdbId,
+            media_type: match.mediaType,
+          });
+        }
+      }
     }
+
+    // Update progress
+    if (onProgress) {
+      onProgress(results.length, items.length, cacheHits);
+    }
+  }
+
+  // Phase 4: Bulk insert new mappings (async, don't block)
+  if (newMappings.length > 0) {
+    batchInsertLetterboxdMappings(newMappings).catch(error => {
+      console.error('Failed to cache new mappings:', error);
+      // Non-blocking - continue even if cache write fails
+    });
   }
 
   return results;

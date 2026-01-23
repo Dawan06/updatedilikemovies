@@ -158,7 +158,7 @@ export async function PATCH(request: NextRequest) {
     const errors: Array<{ item: { tmdb_id: number; media_type: string }; error: string }> = [];
 
     // Add items in parallel (with reasonable concurrency)
-    const batchSize = 10;
+    const batchSize = 50;
     for (let i = 0; i < items.length; i += batchSize) {
       const batch = items.slice(i, i + batchSize);
       const promises = batch.map(async (item: { tmdb_id: number; media_type: 'movie' | 'tv' }) => {

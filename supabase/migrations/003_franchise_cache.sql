@@ -57,20 +57,25 @@ $$ LANGUAGE plpgsql;
 ALTER TABLE franchise_cache ENABLE ROW LEVEL SECURITY;
 ALTER TABLE franchise_discovery_progress ENABLE ROW LEVEL SECURITY;
 
+
 -- Allow public read access (for API queries)
+DROP POLICY IF EXISTS "Allow public read access to franchise_cache" ON franchise_cache;
 CREATE POLICY "Allow public read access to franchise_cache"
   ON franchise_cache FOR SELECT
   USING (true);
 
+DROP POLICY IF EXISTS "Allow public read access to franchise_discovery_progress" ON franchise_discovery_progress;
 CREATE POLICY "Allow public read access to franchise_discovery_progress"
   ON franchise_discovery_progress FOR SELECT
   USING (true);
 
 -- Only service role can write (via server-side functions)
+DROP POLICY IF EXISTS "Allow service role write access to franchise_cache" ON franchise_cache;
 CREATE POLICY "Allow service role write access to franchise_cache"
   ON franchise_cache FOR ALL
   USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "Allow service role write access to franchise_discovery_progress" ON franchise_discovery_progress;
 CREATE POLICY "Allow service role write access to franchise_discovery_progress"
   ON franchise_discovery_progress FOR ALL
   USING (auth.role() = 'service_role');

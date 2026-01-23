@@ -22,6 +22,7 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Handle scroll effect
@@ -46,10 +47,14 @@ export default function Navbar() {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setIsProfileOpen(false);
       }
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node) && isSearchOpen) {
+        setIsSearchOpen(false);
+        setSearchQuery('');
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isSearchOpen]);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -143,7 +148,7 @@ export default function Navbar() {
               </button>
 
               {/* Search - Improved UI */}
-              <div className="relative">
+              <div className="relative" ref={searchContainerRef}>
                 {!isSearchOpen ? (
                   <button
                     onClick={() => setIsSearchOpen(true)}
@@ -153,8 +158,8 @@ export default function Navbar() {
                     <Search className="w-5 h-5" />
                   </button>
                 ) : (
-                  <div className="flex items-center gap-2 bg-netflix-dark/95 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 animate-fade-in">
-                    <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-4 py-2.5 shadow-lg animate-fade-in transition-all duration-200 hover:border-white/30 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20">
+                    <Search className="w-4 h-4 text-gray-300 flex-shrink-0" />
                     <input
                       ref={searchRef}
                       type="text"
@@ -193,25 +198,28 @@ export default function Navbar() {
                           setSearchQuery('');
                         }
                       }}
-                      className="flex-1 bg-transparent text-white text-sm placeholder-gray-400 outline-none min-w-[200px] md:min-w-[300px]"
+                      className="flex-1 bg-transparent text-white text-sm placeholder-gray-400 outline-none min-w-[200px] md:min-w-[300px] focus:placeholder-gray-500"
                     />
-                    {searchQuery && (
+                    {searchQuery ? (
                       <button
                         onClick={() => setSearchQuery('')}
-                        className="flex-shrink-0 p-1 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/10"
+                        className="flex-shrink-0 p-1.5 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/10 active:scale-95"
+                        aria-label="Clear search"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setIsSearchOpen(false);
+                          setSearchQuery('');
+                        }}
+                        className="flex-shrink-0 p-1.5 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/10 active:scale-95"
+                        aria-label="Close search"
                       >
                         <X className="w-4 h-4" />
                       </button>
                     )}
-                    <button
-                      onClick={() => {
-                        setIsSearchOpen(false);
-                        setSearchQuery('');
-                      }}
-                      className="flex-shrink-0 p-1 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/10"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
                   </div>
                 )}
               </div>

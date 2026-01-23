@@ -164,6 +164,11 @@ export interface WatchlistItem {
   tmdb_id: number;
   media_type: MediaType;
   title?: string;
+  name?: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  overview?: string;
+  vote_average?: number;
   added_at: string;
   status: 'watching' | 'completed' | 'plan_to_watch';
 }

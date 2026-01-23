@@ -3,18 +3,32 @@
 import { useRef, useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import { preloadImages, getTMDBImageUrl } from '@/lib/image-preloader';
 
 interface ContentCarouselProps {
   readonly title: string;
   readonly seeAllHref?: string;
   readonly children: React.ReactNode;
+  readonly preloadPaths?: (string | null)[];
 }
 
-export default function ContentCarousel({ title, seeAllHref, children }: ContentCarouselProps) {
+export default function ContentCarousel({ title, seeAllHref, children, preloadPaths = [] }: ContentCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
+
+  // Preload images on initial render
+  useEffect(() => {
+    if (preloadPaths.length > 0) {
+      const urls = preloadPaths
+        .filter((path): path is string => !!path)
+        .map((path) => getTMDBImageUrl(path, 'w300'));
+      preloadImages(urls).catch(() => {
+        // Silently fail - this is just a performance optimization
+      });
+    }
+  }, [preloadPaths]);
 
   const checkScroll = () => {
     if (!scrollRef.current) return;

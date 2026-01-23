@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
-import { Play, Star } from 'lucide-react';
+import { Play, Star, Calendar, Info } from 'lucide-react';
 import { useParallax } from '@/lib/hooks/useParallax';
 import TrailerPlayer from './TrailerPlayer';
 import PrePlayModal from '@/components/PrePlayModal';
 import { Genre } from '@/types';
+import { createProgressiveImageProps } from '@/lib/progressive-image-loader';
 
 interface HeroSectionProps {
   backdropPath: string | null;
@@ -20,7 +20,7 @@ interface HeroSectionProps {
   watchUrl: string;
   trailer?: { key: string; name: string } | null;
   mediaType: 'movie' | 'tv';
-  status?: string; // For TV shows
+  status?: string;
 }
 
 export default function HeroSection({
@@ -39,136 +39,143 @@ export default function HeroSection({
   const backdropRef = useRef<HTMLDivElement>(null);
   const parallaxOffset = useParallax(0.3);
   const [showPrePlayModal, setShowPrePlayModal] = useState(false);
+  const [backdropReady, setBackdropReady] = useState(false);
+
+  // Use high quality image for hero
+  const backdropProgressiveProps = createProgressiveImageProps(backdropPath, 'original');
 
   useEffect(() => {
     if (backdropRef.current) {
-      backdropRef.current.style.transform = `translateY(${parallaxOffset}px)`;
+      // Smoother parallax with scale to prevent edge bleeding
+      backdropRef.current.style.transform = `translateY(${parallaxOffset}px) scale(1.05)`;
     }
   }, [parallaxOffset]);
 
+  const handleWatchClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const dismissed = localStorage.getItem('prePlayTipsDismissed');
+    if (dismissed) {
+      window.location.href = watchUrl;
+    } else {
+      setShowPrePlayModal(true);
+    }
+  };
+
   return (
-    <div className="relative h-[90vh] min-h-[700px] overflow-hidden">
-      {/* Backdrop with Parallax */}
-      {backdropPath && (
-        <div ref={backdropRef} className="absolute inset-0">
+    <div className="relative min-h-[90vh] lg:min-h-screen w-full overflow-hidden flex items-end font-sans">
+      {/* Dynamic Background */}
+      <div ref={backdropRef} className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-netflix-black" />
+        {backdropPath && (
           <Image
-            src={`https://image.tmdb.org/t/p/original${backdropPath}`}
+            src={backdropReady ? backdropProgressiveProps.fullSrc : backdropProgressiveProps.placeholderSrc}
             alt={title}
             fill
-            className="object-cover animate-ken-burns"
+            className={`object-cover transition-opacity duration-1000 ease-out ${backdropReady ? 'opacity-100' : 'opacity-0'
+              }`}
             priority
-            sizes="100vw"
+            quality={90}
+            onLoad={() => setBackdropReady(true)}
+            draggable={false}
           />
-        </div>
-      )}
-      
-      {/* Enhanced Gradients */}
-      <div className="absolute inset-0 bg-gradient-to-r from-netflix-black via-netflix-black/90 to-netflix-black/40" />
-      <div className="absolute inset-0 bg-gradient-to-t from-netflix-black via-netflix-black/60 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-netflix-black/80" />
+        )}
 
-      {/* Content */}
-      <div className="absolute inset-0 flex items-end pb-16 md:pb-24">
-        <div className="w-full px-4 md:px-12">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row gap-8 items-end">
-              {/* Poster */}
-              {posterPath && (
-                <div className="flex-shrink-0 animate-slide-in-left">
-                  <div className="relative w-48 md:w-64 lg:w-80 aspect-[2/3] rounded-lg overflow-hidden shadow-2xl ring-2 ring-white/10">
-                    <Image
-                      src={`https://image.tmdb.org/t/p/w500${posterPath}`}
-                      alt={title}
-                      fill
-                      className="object-cover"
-                      priority
-                      sizes="(max-width: 768px) 192px, (max-width: 1024px) 256px, 320px"
-                    />
-                  </div>
-                </div>
-              )}
+        {/* Premium Cinematic Gradients - Carefully layered for readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-netflix-black via-netflix-black/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-netflix-black via-netflix-black/40 to-transparent opacity-90 md:opacity-100" />
 
-              {/* Text Content */}
-              <div className="flex-1 min-w-0 animate-fade-in-up">
-                {/* Badges */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {mediaType === 'tv' && (
-                    <span className="px-3 py-1 text-xs font-semibold text-primary bg-primary/10 border border-primary/20 rounded-full">
-                      TV Series
-                    </span>
-                  )}
-                  {status && (
-                    <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                      status === 'Returning Series' 
-                        ? 'text-green-400 bg-green-400/10 border border-green-400/20' 
-                        : 'text-gray-400 bg-white/10 border border-white/10'
-                    }`}>
-                      {status}
-                    </span>
-                  )}
-                  {genres.slice(0, mediaType === 'tv' ? 2 : 3).map((g) => (
-                    <span
-                      key={g.id}
-                      className="px-3 py-1 text-xs font-medium text-white/90 bg-white/10 backdrop-blur-sm rounded-full border border-white/20"
-                    >
-                      {g.name}
-                    </span>
-                  ))}
-                </div>
+        {/* Top Vignette */}
+        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black/60 to-transparent z-10" />
+      </div>
 
-                {/* Title */}
-                <h1 className="font-display text-4xl md:text-6xl lg:text-7xl text-white mb-4 tracking-wide leading-tight">
-                  {title}
-                </h1>
+      {/* Main Content */}
+      <div className="relative z-20 w-full px-6 md:px-12 lg:px-16 pb-20 lg:pb-28 max-w-[1600px] mx-auto">
+        <div className="flex flex-col items-start max-w-4xl space-y-6">
 
-                {/* Meta */}
-                <div className="flex items-center gap-4 mb-4 text-sm text-gray-300">
-                  {rating !== undefined && rating > 0 && (
-                    <span className="flex items-center gap-1.5">
-                      <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                      <span className="text-white font-semibold">{rating.toFixed(1)}</span>
-                    </span>
-                  )}
-                  {year && <span>{year}</span>}
-                </div>
+          {/* Metadata Badges */}
+          <div className="flex flex-wrap items-center gap-3 animate-fade-in-up">
+            {mediaType === 'movie' ? (
+              <span className="px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase bg-white/20 backdrop-blur-md text-white border border-white/20 rounded-sm shadow-sm">
+                Movie
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase bg-primary/80 backdrop-blur-md text-white border border-primary/50 rounded-sm shadow-sm">
+                TV Series
+              </span>
+            )}
 
-                {/* Overview */}
-                <p className="text-gray-300 text-base md:text-lg leading-relaxed mb-8 max-w-2xl line-clamp-3">
-                  {overview}
-                </p>
+            {status && mediaType === 'tv' && (
+              <span className="px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase bg-white/10 backdrop-blur-md text-gray-200 border border-white/10 rounded-sm">
+                {status}
+              </span>
+            )}
 
-                {/* Actions */}
-                <div className="flex flex-wrap items-center gap-4">
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      const dismissed = localStorage.getItem('prePlayTipsDismissed');
-                      if (dismissed) {
-                        window.location.href = watchUrl;
-                      } else {
-                        setShowPrePlayModal(true);
-                      }
-                    }}
-                    className="inline-flex items-center gap-3 bg-white text-black px-8 py-3 rounded font-bold text-base hover:bg-white/90 transition-all duration-200 hover:scale-105"
-                  >
-                    <Play className="w-5 h-5 fill-black" />
-                    Watch Now
-                  </button>
-
-                  {trailer && (
-                    <TrailerPlayer 
-                      videoKey={trailer.key} 
-                      title={title}
-                    />
-                  )}
-                </div>
+            {rating && rating > 0 && (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black/40 backdrop-blur-md rounded-sm border border-white/10">
+                <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                <span className="text-xs font-bold text-white tracking-wide">{rating.toFixed(1)}</span>
               </div>
+            )}
+          </div>
+
+          {/* Majestic Title */}
+          <h1 className="font-display font-black text-5xl md:text-7xl lg:text-8xl text-white leading-[0.9] tracking-tight drop-shadow-2xl animate-fade-in-up delay-100">
+            {title}
+          </h1>
+
+          {/* Info Line */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm md:text-base font-medium text-gray-200 animate-fade-in-up delay-200">
+            {year && (
+              <div className="flex items-center gap-2 opacity-90">
+                <Calendar className="w-4 h-4 text-primary" />
+                <span>{year}</span>
+              </div>
+            )}
+
+            <div className="w-1 h-1 rounded-full bg-white/30" />
+
+            <div className="flex flex-wrap gap-2">
+              {genres.map((g, i) => (
+                <span key={g.id} className="text-gray-300 hover:text-white transition-colors">
+                  {g.name}{i < genres.length - 1 ? ',' : ''}
+                </span>
+              ))}
             </div>
+          </div>
+
+          {/* Overview */}
+          <p className="text-base md:text-xl text-gray-200/90 leading-relaxed font-light max-w-3xl line-clamp-3 md:line-clamp-4 drop-shadow-md animate-fade-in-up delay-300">
+            {overview}
+          </p>
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-4 pt-4 animate-fade-in-up delay-500">
+            <button
+              onClick={handleWatchClick}
+              className="group relative flex items-center justify-center gap-3 px-8 py-4 bg-white text-black rounded-lg font-bold text-lg md:text-xl hover:bg-gray-200 transition-all duration-300 transform hover:scale-[1.02] shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.4)]"
+            >
+              <Play className="w-6 h-6 fill-black" />
+              <span>Watch Now</span>
+            </button>
+
+            {trailer && (
+              <TrailerPlayer videoKey={trailer.key} title={title}>
+                <button className="flex items-center justify-center gap-3 px-8 py-4 bg-white/10 backdrop-blur-md text-white border border-white/20 rounded-lg font-bold text-lg hover:bg-white/20 transition-all duration-300 group">
+                  <div className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center group-hover:bg-white group-hover:text-black transition-colors">
+                    <Info className="w-3 h-3" strokeWidth={4} />
+                  </div>
+                  <span>Trailer</span>
+                </button>
+              </TrailerPlayer>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Pre-Play Modal */}
+      {/* Subtle bottom gradient to blend with content below */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-netflix-black to-transparent z-10 pointer-events-none" />
+
+      {/* Modal */}
       <PrePlayModal
         isOpen={showPrePlayModal}
         onClose={() => setShowPrePlayModal(false)}

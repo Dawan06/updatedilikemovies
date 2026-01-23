@@ -1,4 +1,5 @@
 import { tmdbClient } from '@/lib/tmdb/client';
+import { batchLookupIMDbMappings, batchInsertIMDbMappings } from '@/lib/supabase/tmdb-mappings';
 
 export interface IMDbItem {
   position: string;
@@ -117,18 +118,61 @@ function parseCSVLine(line: string): string[] {
   return fields;
 }
 
-export async function matchIMDbToTMDB(items: IMDbItem[]): Promise<Array<{
+export async function matchIMDbToTMDB(
+  items: IMDbItem[],
+  onProgress?: (current: number, total: number, cached: number) => void
+): Promise<Array<{
   imdbItem: IMDbItem;
   tmdbId: number | null;
   mediaType: 'movie' | 'tv';
 }>> {
-  // Process in batches to avoid rate limiting
-  const batchSize = 5;
-  const results: Array<{ imdbItem: IMDbItem; tmdbId: number | null; mediaType: 'movie' | 'tv' }> = [];
+  if (items.length === 0) return [];
 
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    const batchResults = await Promise.all(
+  // Phase 1: Batch cache lookup
+  const imdbIds = items
+    .map(item => item.const)
+    .filter(id => id && id.startsWith('tt'));
+  
+  const cacheMap = await batchLookupIMDbMappings(imdbIds);
+  let cacheHits = 0;
+
+  // Phase 2: Process items - use cache when available, otherwise match via API
+  const results: Array<{ imdbItem: IMDbItem; tmdbId: number | null; mediaType: 'movie' | 'tv' }> = [];
+  const itemsToMatch: IMDbItem[] = [];
+  const cacheResults: Array<{ imdbItem: IMDbItem; tmdbId: number | null; mediaType: 'movie' | 'tv' }> = [];
+
+  // Separate cached items from items needing API calls
+  for (const item of items) {
+    const imdbId = item.const;
+    if (imdbId && imdbId.startsWith('tt')) {
+      const cached = cacheMap.get(imdbId);
+      if (cached) {
+        cacheHits++;
+        cacheResults.push({
+          imdbItem: item,
+          tmdbId: cached.tmdb_id,
+          mediaType: cached.media_type,
+        });
+        if (onProgress) {
+          onProgress(cacheResults.length, items.length, cacheHits);
+        }
+        continue;
+      }
+    }
+    itemsToMatch.push(item);
+  }
+
+  results.push(...cacheResults);
+
+  // Phase 3: Match remaining items via API in large parallel batches
+  const batchSize = 100; // Increased from 25
+  const newMappings: Array<{ imdb_id: string; tmdb_id: number; media_type: 'movie' | 'tv' }> = [];
+
+  for (let i = 0; i < itemsToMatch.length; i += batchSize) {
+    const batch = itemsToMatch.slice(i, i + batchSize);
+    
+    // Process batch in parallel - no delays
+    const batchResults = await Promise.allSettled(
       batch.map(async (item) => {
         try {
           return await matchSingleItem(item);
@@ -138,12 +182,36 @@ export async function matchIMDbToTMDB(items: IMDbItem[]): Promise<Array<{
         }
       })
     );
-    results.push(...batchResults);
-    
-    // Small delay between batches to avoid rate limiting
-    if (i + batchSize < items.length) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Process results
+    for (const result of batchResults) {
+      if (result.status === 'fulfilled') {
+        const match = result.value;
+        results.push(match);
+        
+        // Collect new mappings for cache
+        if (match.tmdbId && match.imdbItem.const && match.imdbItem.const.startsWith('tt')) {
+          newMappings.push({
+            imdb_id: match.imdbItem.const,
+            tmdb_id: match.tmdbId,
+            media_type: match.mediaType,
+          });
+        }
+      }
     }
+
+    // Update progress
+    if (onProgress) {
+      onProgress(results.length, items.length, cacheHits);
+    }
+  }
+
+  // Phase 4: Bulk insert new mappings (async, don't block)
+  if (newMappings.length > 0) {
+    batchInsertIMDbMappings(newMappings).catch(error => {
+      console.error('Failed to cache new mappings:', error);
+      // Non-blocking - continue even if cache write fails
+    });
   }
 
   return results;

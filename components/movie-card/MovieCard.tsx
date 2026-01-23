@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Movie, TVShow, MediaItem } from '@/types';
 import { Film, Star } from 'lucide-react';
 import { useState } from 'react';
+import { createProgressiveImageProps } from '@/lib/progressive-image-loader';
 
 // Genre ID to name mapping (TMDB standard)
 const GENRE_MAP: Record<number, string> = {
@@ -58,6 +59,7 @@ export default function MovieCard({
   onDelete,
 }: MovieCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [fullQualityReady, setFullQualityReady] = useState(false);
   
   const type = mediaType || (item as MediaItem).media_type || 'movie';
   const title = (item as Movie).title || (item as TVShow).name || '';
@@ -66,6 +68,8 @@ export default function MovieCard({
   const rating = item.vote_average || 0;
   const genreIds = (item as Movie | TVShow).genre_ids || [];
   const genres = genreIds.slice(0, 2).map(id => GENRE_MAP[id]).filter(Boolean);
+
+  const progressiveProps = createProgressiveImageProps(posterPath, 'w300');
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -116,27 +120,30 @@ export default function MovieCard({
 
       {/* Card Container - Fixed aspect ratio to prevent CLS */}
       <div className="relative aspect-[2/3] rounded-md overflow-hidden bg-netflix-dark shadow-card transition-shadow duration-300" style={{ minHeight: '270px' }}>
-        {/* Loading Skeleton - Matches exact dimensions */}
-        {!imageLoaded && (
-          <div className="absolute inset-0 skeleton" style={{ aspectRatio: '2/3' }} />
-        )}
-        
-        {/* Poster Image */}
+        {/* Poster Image - Progressive Loading */}
         {posterPath ? (
           <Image
-            src={`https://image.tmdb.org/t/p/w300${posterPath}`}
+            src={fullQualityReady && imageLoaded ? progressiveProps.fullSrc : progressiveProps.placeholderSrc}
             alt={title}
             fill
-            className={`object-cover transition-opacity duration-300 ${
-              imageLoaded ? 'opacity-100' : 'opacity-0'
+            className={`object-cover transition-opacity duration-500 ${
+              fullQualityReady && imageLoaded ? 'opacity-100' : 'opacity-90'
             }`}
             sizes="(max-width: 768px) 180px, 220px"
             loading={priority ? 'eager' : 'lazy'}
             priority={priority}
-            onLoad={() => setImageLoaded(true)}
+            onLoad={() => {
+              setImageLoaded(true);
+              // Preload full quality in background
+              if (!fullQualityReady && progressiveProps.fullSrc) {
+                const preloadImg = document.createElement('img');
+                preloadImg.onload = () => setFullQualityReady(true);
+                preloadImg.src = progressiveProps.fullSrc;
+              }
+            }}
             style={{ objectFit: 'cover' }}
             decoding={priority ? 'sync' : 'async'}
-            quality={70}
+            quality={fullQualityReady && imageLoaded ? progressiveProps.fullQuality : progressiveProps.placeholderQuality}
           />
         ) : (
           <div className="absolute inset-0 bg-netflix-gray flex items-center justify-center" style={{ aspectRatio: '2/3' }}>

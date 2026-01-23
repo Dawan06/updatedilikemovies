@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import Image from 'next/image';
 import { ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { createProgressiveImageProps } from '@/lib/progressive-image-loader';
 
 interface CastMember {
   id: number;
@@ -19,6 +20,7 @@ export default function CastCarousel({ cast }: CastCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [fullQualityReady, setFullQualityReady] = useState<Record<number, boolean>>({});
 
   const checkScroll = () => {
     if (!scrollRef.current) return;
@@ -74,27 +76,41 @@ export default function CastCarousel({ cast }: CastCarouselProps) {
         onScroll={checkScroll}
         className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-2"
       >
-        {cast.map((person) => (
-          <div key={person.id} className="flex-shrink-0 w-32 group">
-            <div className="relative w-32 h-32 mb-2 rounded-lg overflow-hidden bg-netflix-dark">
-              {person.profile_path ? (
-                <Image
-                  src={`https://image.tmdb.org/t/p/w185${person.profile_path}`}
-                  alt={person.name}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-300"
-                  sizes="128px"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Users className="w-12 h-12 text-gray-600" />
-                </div>
-              )}
+        {cast.map((person) => {
+          const progressiveProps = createProgressiveImageProps(person.profile_path, 'w154');
+          return (
+            <div key={person.id} className="flex-shrink-0 w-32 group">
+              <div className="relative w-32 h-32 mb-2 rounded-lg overflow-hidden bg-netflix-dark">
+                {person.profile_path ? (
+                  <Image
+                    src={fullQualityReady[person.id] ? progressiveProps.fullSrc : progressiveProps.placeholderSrc}
+                    alt={person.name}
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    sizes="128px"
+                    quality={fullQualityReady[person.id] ? 60 : 20}
+                    onLoad={() => {
+                      if (!fullQualityReady[person.id] && progressiveProps.fullSrc) {
+                        // Preload full quality image in background
+                        const preloadImg = document.createElement('img');
+                        preloadImg.onload = () => {
+                          setFullQualityReady(prev => ({ ...prev, [person.id]: true }));
+                        };
+                        preloadImg.src = progressiveProps.fullSrc;
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Users className="w-12 h-12 text-gray-600" />
+                  </div>
+                )}
+              </div>
+              <p className="text-white text-sm font-medium truncate">{person.name}</p>
+              <p className="text-gray-500 text-xs truncate">{person.character}</p>
             </div>
-            <p className="text-white text-sm font-medium truncate">{person.name}</p>
-            <p className="text-gray-500 text-xs truncate">{person.character}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

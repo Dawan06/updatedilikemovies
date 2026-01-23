@@ -23,6 +23,7 @@ interface ServerStatus {
   index: number;
   speed: number;
   status: 'testing' | 'fast' | 'slow' | 'failed';
+  working?: boolean;
 }
 
 export default function VideoPlayer({ 
@@ -46,7 +47,7 @@ export default function VideoPlayer({
   const currentSource = sources[currentIndex];
   const isTV = !!tvId && !!currentSeason && !!currentEpisode;
 
-  // Test server speeds (for display only - no auto-selection)
+  // Test server speeds and auto-select fastest working server
   useEffect(() => {
     const testServers = async () => {
       const statuses: ServerStatus[] = [];
@@ -56,7 +57,7 @@ export default function VideoPlayer({
         const startTime = Date.now();
         try {
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 5000);
+          const timeout = setTimeout(() => controller.abort(), 3000); // Reduced timeout for faster testing
           
           await fetch(source.url, {
             method: 'HEAD',
@@ -71,12 +72,14 @@ export default function VideoPlayer({
             index,
             speed,
             status,
+            working: true,
           };
         } catch {
           return {
             index,
             speed: 10000,
             status: 'failed' as 'failed',
+            working: false,
           };
         }
       });
@@ -85,13 +88,33 @@ export default function VideoPlayer({
       statuses.push(...results);
 
       setServerStatuses(statuses);
-      // No auto-selection - user chooses manually
+      
+      // Auto-select the fastest working server
+      const workingServers = results.filter(r => r.working);
+      if (workingServers.length > 0) {
+        // Sort by speed (fastest first)
+        workingServers.sort((a, b) => a.speed - b.speed);
+        const fastestIndex = workingServers[0].index;
+        
+        // Only auto-select if we're on the first server (default) or current server failed
+        const currentStatus = statuses.find(s => s.index === currentIndex);
+        const shouldAutoSelect = currentIndex === 0 || 
+                                 !currentStatus || 
+                                 currentStatus.status === 'failed' ||
+                                 !currentStatus.working;
+        
+        if (shouldAutoSelect && fastestIndex !== currentIndex) {
+          setCurrentIndex(fastestIndex);
+          setIframeKey(k => k + 1);
+        }
+      }
     };
 
     if (sources.length > 0) {
       testServers();
     }
-  }, [sources]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sources]); // currentIndex intentionally excluded - only auto-select on initial load
 
   // Preload next servers in background
   useEffect(() => {
@@ -316,50 +339,87 @@ export default function VideoPlayer({
               </button>
             </div>
             <div className="max-h-80 overflow-y-auto">
-              {/* Sort sources by speed: fast first, then by speed ascending */}
+              {/* Sort sources by: working first, then speed (fastest first), then quality */}
               {[...sources]
                 .map((source, i) => ({ source, index: i, status: serverStatuses.find(s => s.index === i) }))
                 .sort((a, b) => {
                   const statusA = a.status;
                   const statusB = b.status;
-                  if (!statusA && !statusB) return 0;
-                  if (!statusA) return 1;
-                  if (!statusB) return -1;
-                  // Fast first
-                  if (statusA.status === 'fast' && statusB.status !== 'fast') return -1;
-                  if (statusB.status === 'fast' && statusA.status !== 'fast') return 1;
-                  // Then by speed
-                  return statusA.speed - statusB.speed;
+                  
+                  // Working servers first
+                  if (statusA && statusB) {
+                    const aWorking = statusA.working !== false && statusA.status !== 'failed';
+                    const bWorking = statusB.working !== false && statusB.status !== 'failed';
+                    if (aWorking && !bWorking) return -1;
+                    if (!aWorking && bWorking) return 1;
+                    
+                    // If both working, sort by speed (fastest first)
+                    if (aWorking && bWorking) {
+                      return statusA.speed - statusB.speed;
+                    }
+                    
+                    // If both not working, still sort by speed
+                    return statusA.speed - statusB.speed;
+                  }
+                  
+                  // If one has status and other doesn't, prioritize the one with status
+                  if (statusA && !statusB) return -1;
+                  if (!statusA && statusB) return 1;
+                  
+                  // If neither has status, sort by quality
+                  const qualityOrder: Record<string, number> = { 'HD+': 1, 'HD': 2, 'Auto': 3 };
+                  const qualityA = qualityOrder[a.source.quality] || 3;
+                  const qualityB = qualityOrder[b.source.quality] || 3;
+                  return qualityA - qualityB;
                 })
-                .map(({ source, index: i, status }) => (
-                  <button
-                    key={`${source.provider}-${source.url}`}
-                    onClick={() => handleServerChange(i)}
-                    className={`w-full text-left px-4 py-3.5 flex items-center gap-3 transition-all duration-200 ${
-                      currentIndex === i 
-                        ? 'bg-primary/20 text-white border-l-2 border-primary' 
-                        : 'text-gray-300 hover:bg-white/10'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-                      <Tv className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium truncate">{source.provider || `Server ${i + 1}`}</span>
-                        {getServerStatus(i)}
+                .map(({ source, index: i, status }) => {
+                  const isHighQuality = source.quality === 'HD+';
+                  const isMediumQuality = source.quality === 'HD';
+                  
+                  return (
+                    <button
+                      key={`${source.provider}-${source.url}`}
+                      onClick={() => handleServerChange(i)}
+                      className={`w-full text-left px-4 py-3.5 flex items-center gap-3 transition-all duration-200 ${
+                        currentIndex === i 
+                          ? 'bg-primary/20 text-white border-l-2 border-primary' 
+                          : 'text-gray-300 hover:bg-white/10'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        isHighQuality ? 'bg-green-500/20' : isMediumQuality ? 'bg-blue-500/20' : 'bg-white/10'
+                      }`}>
+                        <Tv className={`w-4 h-4 ${
+                          isHighQuality ? 'text-green-400' : isMediumQuality ? 'text-blue-400' : 'text-gray-400'
+                        }`} />
                       </div>
-                      {status && status.speed < 10000 && (
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {status.speed < 1000 ? `${status.speed}ms` : `${(status.speed / 1000).toFixed(1)}s`} response
-                        </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium truncate">{source.provider || `Server ${i + 1}`}</span>
+                          {isHighQuality && (
+                            <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded font-medium">
+                              HD+
+                            </span>
+                          )}
+                          {isMediumQuality && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded font-medium">
+                              HD
+                            </span>
+                          )}
+                          {getServerStatus(i)}
+                        </div>
+                        {status && status.speed < 10000 && (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {status.speed < 1000 ? `${status.speed}ms` : `${(status.speed / 1000).toFixed(1)}s`} response
+                          </p>
+                        )}
+                      </div>
+                      {currentIndex === i && (
+                        <span className="text-xs text-primary font-medium">Playing</span>
                       )}
-                    </div>
-                    {currentIndex === i && (
-                      <span className="text-xs text-primary font-medium">Playing</span>
-                    )}
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
             </div>
           </div>
         </>
