@@ -45,22 +45,26 @@ interface MovieCardProps {
   readonly onSelect?: (id: number, type: 'movie' | 'tv') => void;
   readonly showDeleteButton?: boolean;
   readonly onDelete?: (id: number, type: 'movie' | 'tv') => void;
+  readonly className?: string;
+  readonly style?: React.CSSProperties;
 }
 
-export default function MovieCard({ 
-  item, 
-  mediaType, 
-  priority, 
+export default function MovieCard({
+  item,
+  mediaType,
+  priority,
   enableHover = true,
   showCheckbox = false,
   isSelected = false,
   onSelect,
   showDeleteButton = false,
   onDelete,
+  className = '',
+  style,
 }: MovieCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [fullQualityReady, setFullQualityReady] = useState(false);
-  
+
   const type = mediaType || (item as MediaItem).media_type || 'movie';
   const title = (item as Movie).title || (item as TVShow).name || '';
   const posterPath = item.poster_path;
@@ -84,19 +88,19 @@ export default function MovieCard({
   };
 
   return (
-    <Link 
-      href={`/${type}/${item.id}`} 
-      className={`block group relative ${enableHover ? 'hover:scale-105 hover:z-20' : ''} transition-all duration-300 ease-out`}
+    <Link
+      href={`/${type}/${item.id}`}
+      style={style}
+      className={`block group relative ${enableHover ? 'hover:scale-105 hover:z-20' : ''} transition-all duration-300 ease-out ${className}`}
     >
       {/* Checkbox for selection */}
       {showCheckbox && (
         <button
           onClick={handleCheckboxClick}
-          className={`absolute top-2 left-2 z-20 w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
-            isSelected 
-              ? 'bg-primary border-primary' 
+          className={`absolute top-2 left-2 z-20 w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${isSelected
+              ? 'bg-primary border-primary'
               : 'bg-black/50 border-white/50 hover:border-white'
-          }`}
+            }`}
         >
           {isSelected && (
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -126,9 +130,8 @@ export default function MovieCard({
             src={fullQualityReady && imageLoaded ? progressiveProps.fullSrc : progressiveProps.placeholderSrc}
             alt={title}
             fill
-            className={`object-cover transition-opacity duration-500 ${
-              fullQualityReady && imageLoaded ? 'opacity-100' : 'opacity-90'
-            }`}
+            className={`object-cover transition-opacity duration-500 ${fullQualityReady && imageLoaded ? 'opacity-100' : 'opacity-90'
+              }`}
             sizes="(max-width: 768px) 180px, 220px"
             loading={priority ? 'eager' : 'lazy'}
             priority={priority}
@@ -156,14 +159,14 @@ export default function MovieCard({
           <div className="absolute inset-0 flex flex-col justify-end opacity-0 group-hover:opacity-100 transition-all duration-300">
             {/* Gradient overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
-            
+
             {/* Content */}
             <div className="relative z-10 p-3">
               {/* Title */}
               <h3 className="text-white font-semibold text-sm line-clamp-2 mb-2">
                 {title}
               </h3>
-              
+
               {/* Rating & Year Row */}
               <div className="flex items-center gap-2 mb-2">
                 {rating > 0 && (
@@ -183,12 +186,12 @@ export default function MovieCard({
                   {type === 'tv' ? 'TV' : 'Movie'}
                 </span>
               </div>
-              
+
               {/* Genre Tags */}
               {genres.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {genres.map((genre, idx) => (
-                    <span 
+                    <span
                       key={idx}
                       className="px-1.5 py-0.5 bg-white/10 rounded text-[10px] text-gray-300"
                     >

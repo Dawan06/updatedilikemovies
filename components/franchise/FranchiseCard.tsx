@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Film, Star, ChevronRight } from 'lucide-react';
+import { Film, Star, ChevronRight, Layers } from 'lucide-react';
 import { FranchiseCard as FranchiseCardType } from '@/types';
 import { useState } from 'react';
 import { createProgressiveImageProps } from '@/lib/progressive-image-loader';
@@ -27,77 +27,82 @@ export default function FranchiseCard({ franchise, priority = false }: Franchise
   return (
     <Link
       href={`/franchise/${collection.id}`}
-      className="group relative block aspect-video rounded-2xl overflow-hidden bg-netflix-dark transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-primary/20"
+      className="group relative block aspect-video rounded-xl overflow-hidden bg-netflix-dark shadow-card hover:shadow-card-hover hover:shadow-primary/20 transition-all duration-700 ease-cinematic z-0"
     >
-      {/* Backdrop Image */}
-      {progressiveProps.fullSrc ? (
-        <Image
-          src={backdropReady ? progressiveProps.fullSrc : progressiveProps.placeholderSrc}
-          alt={collection.name}
-          fill
-          className="object-cover transition-transform duration-700 group-hover:scale-110"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          loading={priority ? 'eager' : 'lazy'}
-          priority={priority}
-          quality={backdropReady ? 70 : 20}
-          onLoad={() => {
-            setBackdropReady(true);
-            if (progressiveProps.fullSrc) {
-              const preloadImg = document.createElement('img');
-              preloadImg.src = progressiveProps.fullSrc;
-            }
-          }}
-        />
-      ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-netflix-gray to-netflix-dark" />
-      )}
-
-      {/* Gradient Overlays for readability */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-80" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
-
-      {/* Glassmorphism border on hover */}
-      <div className="absolute inset-0 rounded-2xl border border-white/0 group-hover:border-white/20 transition-all duration-500" />
-
-      {/* Glow effect on hover */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-t from-primary/10 to-transparent" />
-
-      {/* Content */}
-      <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-6">
-        {/* Rating Badge - Top Right */}
-        {avgRating > 0 && (
-          <div className="absolute top-4 right-4 flex items-center gap-1 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded-full border border-white/10">
-            <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-            <span className="text-white text-sm font-semibold">{avgRating.toFixed(1)}</span>
-          </div>
+      {/* Backdrop Image with Slow Cinematic Zoom */}
+      <div className="absolute inset-0 overflow-hidden rounded-xl">
+        {progressiveProps.fullSrc ? (
+          <Image
+            src={backdropReady ? progressiveProps.fullSrc : progressiveProps.placeholderSrc}
+            alt={collection.name}
+            fill
+            className="object-cover transition-transform duration-[1.5s] ease-out group-hover:scale-110 will-change-transform"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            loading={priority ? 'eager' : 'lazy'}
+            priority={priority}
+            quality={backdropReady ? 80 : 20}
+            onLoad={() => {
+              setBackdropReady(true);
+              if (progressiveProps.fullSrc) {
+                const preloadImg = document.createElement('img');
+                preloadImg.src = progressiveProps.fullSrc;
+              }
+            }}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-neutral-900" />
         )}
+      </div>
 
-        {/* Franchise Name */}
-        <h3 className="text-white font-bold text-xl md:text-2xl mb-2 drop-shadow-lg line-clamp-2 group-hover:text-primary-light transition-colors duration-300">
-          {collection.name}
-        </h3>
+      {/* Cinematic Vignette & Gradient Overlays */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-80 transition-opacity duration-500 group-hover:opacity-90" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-transparent to-transparent opacity-60" />
 
-        {/* Stats Row */}
-        <div className="flex items-center gap-3 mb-3">
-          <div className="flex items-center gap-1.5 text-gray-300">
-            <Film className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium">
-              {movieCount} {movieCount === 1 ? 'Movie' : 'Movies'}
-            </span>
+      {/* Subtle Shine Effect */}
+      <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/5 to-transparent z-10 pointer-events-none" />
+
+      {/* Border Glow */}
+      <div className="absolute inset-0 rounded-xl border border-white/10 group-hover:border-primary/30 transition-colors duration-500 z-20" />
+
+      {/* Content Layer */}
+      <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-6 z-20">
+
+        {/* Floating Badges (Top Right) */}
+        <div className="absolute top-4 right-4 flex flex-col gap-2 items-end translate-y-[-10px] opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 delay-100">
+          {avgRating > 0 && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-black/60 backdrop-blur-md rounded-full border border-white/10 shadow-lg">
+              <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+              <span className="text-yellow-50 text-xs font-bold tracking-wide">{avgRating.toFixed(1)}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-black/60 backdrop-blur-md rounded-full border border-white/10 shadow-lg">
+            <Layers className="w-3 h-3 text-gray-300" />
+            <span className="text-gray-300 text-xs font-semibold">{movieCount} Entries</span>
           </div>
         </div>
 
-        {/* Overview (truncated) */}
-        {collection.overview && (
-          <p className="text-gray-400 text-sm line-clamp-2 mb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            {collection.overview}
-          </p>
-        )}
+        {/* Title Section */}
+        <div className="transform transition-transform duration-500 group-hover:-translate-y-1">
+          <h3 className="font-display text-3xl md:text-4xl text-white uppercase tracking-widest drop-shadow-2xl leading-none mb-2 line-clamp-1 group-hover:text-primary transition-colors duration-300">
+            {collection.name.replace(' Collection', '')}
+          </h3>
 
-        {/* CTA - appears on hover */}
-        <div className="flex items-center gap-2 text-primary font-semibold text-sm opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-          <span>Explore Collection</span>
-          <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+          <div className="h-0.5 w-12 bg-primary rounded-full mb-3 opacity-0 group-hover:opacity-100 transition-all duration-500 ease-out origin-left group-hover:w-full max-w-[200px]" />
+
+          <p className="text-gray-300 text-sm font-light line-clamp-2 max-w-[90%] opacity-0 group-hover:opacity-100 transition-all duration-500 delay-75 transform translate-y-4 group-hover:translate-y-0">
+            {collection.overview || `Experience the complete ${collection.name} saga.`}
+          </p>
+        </div>
+
+        {/* Bottom Action Bar */}
+        <div className="flex items-center justify-between mt-4 border-t border-white/10 pt-3 opacity-0 group-hover:opacity-100 transition-all duration-500 delay-150 transform translate-y-4 group-hover:translate-y-0">
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-widest">
+            {movieCount} Movies
+          </span>
+          <div className="flex items-center gap-1 text-white text-xs font-bold uppercase tracking-widest group/btn">
+            Explore
+            <ChevronRight className="w-3.5 h-3.5 text-primary transition-transform duration-300 group-hover/btn:translate-x-1" />
+          </div>
         </div>
       </div>
     </Link>
