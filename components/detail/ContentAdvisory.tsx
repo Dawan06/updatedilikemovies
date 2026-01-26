@@ -10,6 +10,7 @@ interface ContentAdvisoryProps {
     release_dates: Array<{
       certification: string;
       note?: string;
+      type?: number;
     }>;
   }>;
   contentRatings?: Array<{

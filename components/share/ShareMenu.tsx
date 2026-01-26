@@ -131,7 +131,7 @@ export default function ShareMenu({ url, title, description, mediaType, seasonNu
                 {/* Share Options */}
                 <div className="space-y-4">
                   {/* Native Share - Primary Action */}
-                  {navigator.share && (
+                  {(typeof navigator !== 'undefined' && 'share' in navigator) && (
                     <button
                       onClick={handleShare}
                       className="w-full group relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/20 to-primary/10 hover:from-primary/30 hover:to-primary/20 border border-primary/30 hover:border-primary/50 transition-all duration-300 p-5 text-left"

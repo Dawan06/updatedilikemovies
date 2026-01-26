@@ -305,7 +305,12 @@ export default function MovieCard({
     
     {contextMenu && (
       <MovieCardContextMenu
-        item={item}
+        item={{
+          id: item.id,
+          title: (item as Movie).title,
+          name: (item as TVShow).name,
+          media_type: type,
+        }}
         position={contextMenu}
         onClose={() => setContextMenu(null)}
       />

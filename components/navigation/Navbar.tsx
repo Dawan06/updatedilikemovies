@@ -207,7 +207,6 @@ export default function Navbar() {
                       type="text"
                       placeholder="Search titles, people, genres..."
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && searchQuery.trim()) {
                           handleSearch(searchQuery);

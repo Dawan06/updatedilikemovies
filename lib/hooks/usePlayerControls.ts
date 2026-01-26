@@ -15,7 +15,7 @@ interface UsePlayerControlsOptions {
   onSpeedChange?: (delta: number) => void;
   onJumpToPercent?: (percent: number) => void;
   enabled?: boolean;
-  iframeRef?: React.RefObject<HTMLIFrameElement>;
+  iframeRef?: React.RefObject<HTMLIFrameElement | null>;
 }
 
 export function usePlayerControls({

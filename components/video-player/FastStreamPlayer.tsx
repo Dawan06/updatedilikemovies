@@ -89,7 +89,7 @@ export default function VideoPlayer({
   const [blacklistedServers, setBlacklistedServers] = useState<string[]>([]);
   
   const preloadRefs = useRef<Map<number, HTMLIFrameElement>>(new Map());
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const mouseIdleTimerRef = useRef<NodeJS.Timeout | null>(null);
   const progressUpdateTimerRef = useRef<NodeJS.Timeout | null>(null);
