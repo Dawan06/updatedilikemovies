@@ -65,6 +65,7 @@ export default function VideoPlayer({
   mediaType,
   runtime,
 }: VideoPlayerProps) {
+  // Default to vidsrc.to (index 0, priority 1) - user decides which server to use
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showServers, setShowServers] = useState(false);
   const [showEpisodes, setShowEpisodes] = useState(false);
@@ -353,16 +354,143 @@ export default function VideoPlayer({
     return () => window.removeEventListener('message', handleMessage);
   }, [isTV, nextEp, detectEpisodeEnd, updateProgress]);
 
-  // Fullscreen handling
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen().then(() => {
-        setIsFullscreen(true);
-      });
-    } else {
-      document.exitFullscreen().then(() => {
+  // Try to hide overlay messages in iframe (limited by cross-origin restrictions)
+  useEffect(() => {
+    if (!iframeRef.current) return;
+
+    const iframe = iframeRef.current;
+    
+    const tryHideOverlays = () => {
+      try {
+        // Try to access iframe content (will fail for cross-origin, but worth trying)
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (iframeDoc) {
+          // Inject CSS to hide common overlay messages
+          const style = iframeDoc.createElement('style');
+          style.textContent = `
+            /* Hide "click esc to use cursor" and similar messages */
+            [class*="cursor"], [class*="overlay"], [id*="cursor"], [id*="overlay"],
+            [class*="esc"], [id*="esc"], [class*="message"], [id*="message"],
+            [class*="tooltip"], [id*="tooltip"], [class*="hint"], [id*="hint"] {
+              display: none !important;
+              visibility: hidden !important;
+              opacity: 0 !important;
+              pointer-events: none !important;
+            }
+            /* Common overlay patterns */
+            .overlay-message, .cursor-message, .esc-message,
+            [data-overlay], [data-cursor], [data-esc],
+            .vjs-overlay, .plyr__overlay {
+              display: none !important;
+            }
+            /* Hide elements containing common overlay text */
+            * {
+              user-select: auto !important;
+            }
+          `;
+          iframeDoc.head.appendChild(style);
+          
+          // Also try to find and remove overlay elements
+          const overlays = iframeDoc.querySelectorAll('[class*="cursor"], [class*="overlay"], [id*="cursor"], [id*="esc"]');
+          overlays.forEach(el => {
+            (el as HTMLElement).style.display = 'none';
+            (el as HTMLElement).remove();
+          });
+        }
+      } catch (e) {
+        // Cross-origin restriction - can't access iframe content
+        // This is expected for most video hosting sites
+      }
+    };
+
+    // Try after iframe loads
+    iframe.addEventListener('load', tryHideOverlays);
+    
+    // Also try immediately and with delays in case iframe is already loaded
+    setTimeout(tryHideOverlays, 500);
+    setTimeout(tryHideOverlays, 1500);
+    setTimeout(tryHideOverlays, 3000);
+
+    return () => {
+      iframe.removeEventListener('load', tryHideOverlays);
+    };
+  }, [currentIndex, iframeKey]);
+
+  // Handle ESC key to dismiss overlays and improve cursor behavior
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // Send ESC to iframe to dismiss any overlays
+        if (iframeRef.current?.contentWindow) {
+          try {
+            iframeRef.current.contentWindow.postMessage({ type: 'keydown', key: 'Escape' }, '*');
+          } catch (e) {
+            // Cross-origin restriction
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Fullscreen handling - try iframe fullscreen first, then container
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) {
+        // Try iframe fullscreen first (if supported by the embedded player)
+        if (iframeRef.current?.requestFullscreen) {
+          try {
+            await iframeRef.current.requestFullscreen();
+            setIsFullscreen(true);
+            return;
+          } catch (e) {
+            // If iframe fullscreen fails, try container
+          }
+        }
+        
+        // Fallback to container fullscreen
+        if (containerRef.current?.requestFullscreen) {
+          await containerRef.current.requestFullscreen();
+          setIsFullscreen(true);
+        } else if ((containerRef.current as any)?.webkitRequestFullscreen) {
+          // Safari support
+          await (containerRef.current as any).webkitRequestFullscreen();
+          setIsFullscreen(true);
+        } else if ((containerRef.current as any)?.mozRequestFullScreen) {
+          // Firefox support
+          await (containerRef.current as any).mozRequestFullScreen();
+          setIsFullscreen(true);
+        } else if ((containerRef.current as any)?.msRequestFullscreen) {
+          // IE/Edge support
+          await (containerRef.current as any).msRequestFullscreen();
+          setIsFullscreen(true);
+        }
+      } else {
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        } else if ((document as any).mozCancelFullScreen) {
+          await (document as any).mozCancelFullScreen();
+        } else if ((document as any).msExitFullscreen) {
+          await (document as any).msExitFullscreen();
+        }
         setIsFullscreen(false);
-      });
+      }
+    } catch (error) {
+      console.error('Fullscreen error:', error);
+      // Fallback: try container fullscreen
+      if (!document.fullscreenElement && containerRef.current) {
+        try {
+          await containerRef.current.requestFullscreen();
+          setIsFullscreen(true);
+        } catch (e) {
+          console.error('Container fullscreen also failed:', e);
+        }
+      }
     }
   }, []);
 
@@ -382,11 +510,10 @@ export default function VideoPlayer({
     }
   }, []);
 
-  // Test server speeds and auto-select fastest working server
+  // Test server speeds (for display only - user decides which server to use)
   useEffect(() => {
     const testServers = async () => {
       const statuses: ServerStatus[] = [];
-      const performance = getServerPerformance();
 
       const testPromises = sources.map(async (source, index) => {
         // Skip blacklisted servers
@@ -438,42 +565,13 @@ export default function VideoPlayer({
       statuses.push(...results);
 
       setServerStatuses(statuses);
-
-      // Sort by: favorites first, then by speed, then by performance history
-      const workingServers = results.filter(r => r.working);
-      if (workingServers.length > 0) {
-        workingServers.sort((a, b) => {
-          const sourceA = sources[a.index];
-          const sourceB = sources[b.index];
-          const isFavoriteA = favoriteServers.includes(sourceA.url);
-          const isFavoriteB = favoriteServers.includes(sourceB.url);
-          
-          // Favorites first
-          if (isFavoriteA && !isFavoriteB) return -1;
-          if (!isFavoriteA && isFavoriteB) return 1;
-          
-          // Then by speed
-          return a.speed - b.speed;
-        });
-        const fastestIndex = workingServers[0].index;
-
-        const currentStatus = statuses.find(s => s.index === currentIndex);
-        const shouldAutoSelect = currentIndex === 0 ||
-          !currentStatus ||
-          currentStatus.status === 'failed' ||
-          !currentStatus.working;
-
-        if (shouldAutoSelect && fastestIndex !== currentIndex) {
-          setCurrentIndex(fastestIndex);
-          setIframeKey(k => k + 1);
-        }
-      }
+      // Note: User manually selects servers - no auto-selection
     };
 
     if (sources.length > 0) {
       testServers();
     }
-  }, [sources, currentIndex, blacklistedServers, favoriteServers]);
+  }, [sources, blacklistedServers]);
 
   // Preload next servers in background
   useEffect(() => {
@@ -535,21 +633,10 @@ export default function VideoPlayer({
 
   const handleIframeError = useCallback(() => {
     trackError();
-    setError('Failed to load video. Trying next server...');
-    setLoading(true);
-    
-    // Try next server
-    const nextServerIndex = (currentIndex + 1) % sources.length;
-    if (nextServerIndex !== currentIndex && retryCount < sources.length - 1) {
-      setTimeout(() => {
-        setRetryCount(prev => prev + 1);
-        setCurrentIndex(nextServerIndex);
-        setIframeKey(k => k + 1);
-      }, 1000);
-    } else {
-      setError('All servers failed. Please try again later.');
-    }
-  }, [currentIndex, sources.length, retryCount, trackError]);
+    setError('Failed to load video. Please select a different server.');
+    setLoading(false);
+    // User decides which server to use - no auto-retry
+  }, [trackError]);
 
   const handleServerChange = (index: number) => {
     setCurrentIndex(index);
@@ -869,6 +956,13 @@ export default function VideoPlayer({
             <div className="max-h-80 overflow-y-auto">
               {[...sources]
                 .map((source, i) => ({ source, index: i, status: serverStatuses.find(s => s.index === i) }))
+                // Filter out servers without valid ms stats (speed >= 10000 means not connected/tested)
+                .filter(({ status }) => {
+                  // Always show current server, even if no stats yet
+                  if (status && status.index === currentIndex) return true;
+                  // Only show servers with valid speed stats (connected and tested)
+                  return status && status.speed < 10000 && status.working !== false;
+                })
                 .sort((a, b) => {
                   const statusA = a.status;
                   const statusB = b.status;
@@ -930,7 +1024,7 @@ export default function VideoPlayer({
                           )}
                           {getServerStatus(i)}
                         </div>
-                        {status && status.speed < 10000 && (
+                        {status && status.speed < 10000 && status.working !== false && (
                           <p className="text-xs text-gray-500 mt-0.5">
                             {status.speed < 1000 ? `${status.speed}ms` : `${(status.speed / 1000).toFixed(1)}s`} response
                           </p>
@@ -1076,19 +1170,25 @@ export default function VideoPlayer({
       )}
 
       {/* The Iframe Player */}
-      <iframe
-        ref={iframeRef}
-        key={`${currentIndex}-${iframeKey}`}
-        src={currentSource?.url}
-        className="w-full h-full border-0"
-        title={title || 'Video Player'}
-        allowFullScreen
-        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-        onLoad={handleIframeLoad}
-        onError={handleIframeError}
-        aria-label={`Video player for ${title}`}
-        role="application"
-      />
+      <div className="relative w-full h-full iframe-wrapper">
+        <iframe
+          ref={iframeRef}
+          key={`${currentIndex}-${iframeKey}`}
+          src={currentSource?.url}
+          className="w-full h-full border-0 iframe-player"
+          title={title || 'Video Player'}
+          allowFullScreen
+          allow="autoplay; encrypted-media; fullscreen; picture-in-picture; pointer-lock"
+          onLoad={handleIframeLoad}
+          onError={handleIframeError}
+          aria-label={`Video player for ${title}`}
+          role="application"
+          style={{
+            pointerEvents: 'auto',
+            cursor: 'default',
+          }}
+        />
+      </div>
     </div>
   );
 }

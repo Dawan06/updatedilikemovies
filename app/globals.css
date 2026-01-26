@@ -463,3 +463,59 @@ a:focus-visible {
   border-radius: 4px;
 }
 
+/* ========================================
+   Video Player Iframe Styles
+   ======================================== */
+.iframe-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.iframe-player {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+}
+
+/* Hide common overlay messages from embedded players */
+.iframe-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: transparent;
+}
+
+/* Try to hide overlay messages via CSS (limited due to cross-origin) */
+iframe[class*="iframe-player"] {
+  pointer-events: auto !important;
+  cursor: default !important;
+}
+
+/* Fullscreen improvements */
+:fullscreen .iframe-wrapper,
+:-webkit-full-screen .iframe-wrapper,
+:-moz-full-screen .iframe-wrapper,
+:-ms-fullscreen .iframe-wrapper {
+  width: 100vw;
+  height: 100vh;
+}
+
+:fullscreen .iframe-player,
+:-webkit-full-screen .iframe-player,
+:-moz-full-screen .iframe-player,
+:-ms-fullscreen .iframe-player {
+  width: 100vw;
+  height: 100vh;
+}
+
