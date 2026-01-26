@@ -73,7 +73,7 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
     // Increased delay to 3500ms to ensure LCP completes
     const timer = setTimeout(() => {
       setShowVideo(true);
-      
+
       // Use intersection observer to only load video when hero is visible
       if (heroRef.current && typeof IntersectionObserver !== 'undefined') {
         observerRef.current = new IntersectionObserver(
@@ -93,14 +93,14 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
             threshold: 0.1,
           }
         );
-        
+
         observerRef.current.observe(heroRef.current);
       } else {
         // Fallback: load video if intersection observer not available
         setShouldLoadVideo(true);
       }
     }, 3500);
-    
+
     return () => {
       clearTimeout(timer);
       if (observerRef.current) {
@@ -122,7 +122,7 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
   const toggleMute = () => {
     const currentItemId = slides[currentIndex]?.item.id;
     const player = currentItemId ? playerRefs.current[currentItemId] : null;
-    
+
     if (player) {
       try {
         if (isMuted) {
@@ -165,19 +165,18 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
   };
 
   return (
-    <div ref={heroRef} className="relative w-full overflow-hidden" style={{ aspectRatio: '16/9', minHeight: '550px', maxHeight: '900px', height: '85vh' }}>
+    <div ref={heroRef} className="relative w-full overflow-hidden h-[80vh] min-h-[500px] md:h-[85vh] md:min-h-[550px] max-h-[900px]">
       {/* Background - All slides */}
       {slides.map((slide, index) => {
         const hasTrailer = slide.trailerKey && showVideo;
         const isCurrentSlide = index === currentIndex;
         const shouldLoad = index === 0 || index === currentIndex; // Only load first and current slide images
-        
+
         return (
           <div
             key={slide.item.id}
-            className={`absolute inset-0 transition-opacity duration-800 ${
-              isCurrentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
-            }`}
+            className={`absolute inset-0 transition-opacity duration-800 ${isCurrentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
+              }`}
           >
             {/* Backdrop Image (always present as fallback) */}
             {slide.item.backdrop_path && shouldLoad && (
@@ -185,16 +184,15 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
                 src={`https://image.tmdb.org/t/p/w1280${slide.item.backdrop_path}`}
                 alt={(slide.item as Movie).title || (slide.item as TVShow).name || ''}
                 fill
-                className={`object-cover transition-opacity duration-500 ${
-                  hasTrailer && videoReady[slide.item.id] ? 'opacity-0' : 'opacity-100'
-                }`}
+                className={`object-cover transition-opacity duration-500 ${hasTrailer && videoReady[slide.item.id] ? 'opacity-0' : 'opacity-100'
+                  }`}
                 priority={index === 0}
                 sizes="100vw"
                 quality={70}
                 decoding="async"
               />
             )}
-            
+
             {/* YouTube Video Trailer - Lazy load only when slide is active, after delay, and when visible */}
             {slide.trailerKey && isCurrentSlide && showVideo && shouldLoadVideo && (
               <div className="absolute inset-0 w-full h-full overflow-hidden">
@@ -217,7 +215,7 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
       {/* Gradient Overlays - Cinematic */}
       <div className="absolute inset-0 bg-gradient-to-r from-netflix-black via-netflix-black/70 to-transparent z-20" />
       <div className="absolute inset-0 bg-gradient-to-t from-netflix-black via-transparent to-netflix-black/40 z-20" />
-      
+
       {/* Vignette effect */}
       <div className="absolute inset-0 bg-gradient-vignette opacity-50 z-20" />
 
@@ -237,16 +235,16 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
         <div className="w-full px-4 md:px-12 pb-36 md:pb-40">
           <div className="max-w-2xl">
             {/* Title with cinematic animation */}
-            <h1 
+            <h1
               key={currentItem.id}
-              className="font-display text-4xl md:text-6xl lg:text-7xl text-white mb-4 tracking-wide drop-shadow-2xl animate-fade-in-up"
+              className="font-display text-3xl sm:text-4xl md:text-6xl lg:text-7xl text-white mb-2 md:mb-4 tracking-wide drop-shadow-2xl animate-fade-in-up"
               style={{ textShadow: '0 4px 30px rgba(0,0,0,0.8)' }}
             >
               {title.toUpperCase()}
             </h1>
 
             {/* Meta Info */}
-            <div className="flex flex-wrap items-center gap-4 mb-4 text-sm animate-fade-in-up animation-delay-100">
+            <div className="flex flex-wrap items-center gap-2 md:gap-4 mb-2 md:mb-4 text-sm animate-fade-in-up animation-delay-100">
               {rating > 0 && (
                 <div className="flex items-center gap-1.5">
                   <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
@@ -263,13 +261,13 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
 
             {/* Overview */}
             {overview && (
-              <p className="text-gray-200 text-base md:text-lg max-w-xl leading-relaxed mb-6 line-clamp-3 drop-shadow-lg animate-fade-in-up animation-delay-200">
+              <p className="text-gray-200 text-sm md:text-lg max-w-xl leading-relaxed mb-4 md:mb-6 line-clamp-3 md:line-clamp-4 drop-shadow-lg animate-fade-in-up animation-delay-200">
                 {overview}
               </p>
             )}
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap gap-3 animate-fade-in-up animation-delay-300">
+            <div className="flex flex-wrap gap-2 md:gap-3 animate-fade-in-up animation-delay-300">
               <button
                 onClick={(e) => {
                   e.preventDefault();
@@ -282,16 +280,16 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
                     setShowPrePlayModal(true);
                   }
                 }}
-                className="group flex items-center gap-2 bg-white text-black px-6 md:px-8 py-3 rounded-md font-semibold text-lg hover:bg-gray-200 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+                className="group flex items-center gap-2 bg-white text-black px-4 md:px-8 py-2 md:py-3 rounded-md font-semibold text-base md:text-lg hover:bg-gray-200 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
               >
-                <Play className="w-6 h-6 fill-black" />
+                <Play className="w-5 h-5 md:w-6 md:h-6 fill-black" />
                 <span>Play</span>
               </button>
-              <Link 
+              <Link
                 href={`/${mediaType}/${currentItem.id}`}
-                className="group flex items-center gap-2 glass text-white px-6 md:px-8 py-3 rounded-md font-semibold text-lg hover:bg-white/20 transition-all duration-300 shadow-lg"
+                className="group flex items-center gap-2 glass text-white px-4 md:px-8 py-2 md:py-3 rounded-md font-semibold text-base md:text-lg hover:bg-white/20 transition-all duration-300 shadow-lg"
               >
-                <Info className="w-6 h-6" />
+                <Info className="w-5 h-5 md:w-6 md:h-6" />
                 <span>More Info</span>
               </Link>
             </div>
@@ -305,11 +303,10 @@ export default function HeroBanner({ items, mediaType, trailers = {} }: HeroBann
           <button
             key={index}
             onClick={() => goToSlide(index)}
-            className={`transition-all duration-500 rounded-full ${
-              index === currentIndex 
-                ? 'w-10 h-2 bg-primary shadow-glow' 
+            className={`transition-all duration-500 rounded-full ${index === currentIndex
+                ? 'w-10 h-2 bg-primary shadow-glow'
                 : 'w-2 h-2 bg-white/50 hover:bg-white/80'
-            }`}
+              }`}
             aria-label={`Go to slide ${index + 1}`}
           />
         ))}

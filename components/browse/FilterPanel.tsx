@@ -171,7 +171,7 @@ export default function FilterPanel({
             {showGenres && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                className="absolute top-full left-0 mt-2 p-3 bg-netflix-gray/95 backdrop-blur-xl rounded-2xl border border-white/10 z-50 min-w-[320px] max-h-80 overflow-y-auto shadow-2xl"
+                className="absolute top-full left-0 mt-2 p-3 bg-netflix-gray/95 backdrop-blur-xl rounded-2xl border border-white/10 z-50 w-[90vw] md:w-auto min-w-[280px] md:min-w-[320px] max-h-80 overflow-y-auto shadow-2xl"
               >
                 <GenreFilter
                   genres={currentGenres}
@@ -297,8 +297,8 @@ export default function FilterPanel({
         <AnimatePresence>
           {showSort && (
             <motion.div
-              initial={{ opacity: 0, y: 10, x: 20 }} animate={{ opacity: 1, y: 0, x: 0 }} exit={{ opacity: 0, y: 10, x: 20 }}
-              className="absolute top-full right-0 mt-2 p-2 bg-netflix-gray/95 backdrop-blur-xl rounded-2xl border border-white/10 z-50 min-w-[180px] shadow-2xl"
+              initial={{ opacity: 0, y: 10, x: 0 }} animate={{ opacity: 1, y: 0, x: 0 }} exit={{ opacity: 0, y: 10, x: 0 }}
+              className="absolute top-full left-0 lg:left-auto lg:right-0 mt-2 p-2 bg-netflix-gray/95 backdrop-blur-xl rounded-2xl border border-white/10 z-50 min-w-[180px] shadow-2xl"
             >
               <div className="space-y-0.5">
                 {SORT_OPTIONS.map((option) => (

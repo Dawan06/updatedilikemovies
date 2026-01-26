@@ -25,6 +25,7 @@ interface WatchPageClientProps {
   episode?: number;
   episodes?: Episode[];
   totalSeasons?: number;
+  runtime?: number;
 }
 
 export default function WatchPageClient({
@@ -36,6 +37,7 @@ export default function WatchPageClient({
   episode,
   episodes,
   totalSeasons,
+  runtime,
 }: WatchPageClientProps) {
   // No sign-in required to watch content
   // Users can watch freely - only watchlist features require authentication
@@ -50,6 +52,7 @@ export default function WatchPageClient({
         episode={episode}
         episodes={episodes}
         totalSeasons={totalSeasons}
+        runtime={runtime}
       />
     </div>
   );

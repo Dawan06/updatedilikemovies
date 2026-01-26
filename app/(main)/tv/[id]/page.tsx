@@ -3,9 +3,11 @@ import { TVShowDetails, SeasonDetails } from '@/types';
 import dynamic from 'next/dynamic';
 import SeasonSelector from './SeasonSelector';
 import CastGrid from '@/components/detail/CastGrid';
+import CrewSection from '@/components/detail/CrewSection';
 import DetailSidebar from '@/components/detail/DetailSidebar';
 import ExpandableOverview from '@/components/detail/ExpandableOverview';
 import HeroSection from '@/components/detail/HeroSection';
+import ContentAdvisory from '@/components/detail/ContentAdvisory';
 
 // Lazy load below-the-fold components
 const PhotoGallery = dynamic(() => import('@/components/detail/PhotoGallery'), {
@@ -32,7 +34,7 @@ async function getSeasonData(tvId: number, seasons: TVShowDetails['seasons']): P
 export default async function TVDetailPage({ params }: { params: { readonly id: string } }) {
   const tvId = Number.parseInt(params.id, 10);
 
-  const [show, credits, videos, images, similar, recommendations, reviews] = await Promise.all([
+  const [show, credits, videos, images, similar, recommendations, reviews, contentRatings] = await Promise.all([
     cachedTmdbClient.getTVDetails(tvId),
     cachedTmdbClient.getTVCredits(tvId).catch(() => null),
     cachedTmdbClient.getTVVideos(tvId).catch(() => ({ results: [] })),
@@ -40,7 +42,11 @@ export default async function TVDetailPage({ params }: { params: { readonly id: 
     cachedTmdbClient.getSimilarTV(tvId).catch(() => ({ results: [] })),
     cachedTmdbClient.getTVRecommendations(tvId).catch(() => ({ results: [] })),
     cachedTmdbClient.getTVReviews(tvId).catch(() => ({ results: [], total_results: 0 })),
+    cachedTmdbClient.getTVContentRatings(tvId).catch(() => ({ id: tvId, results: [] })),
   ]);
+
+  // Get US content rating
+  const usRating = contentRatings.results.find(r => r.iso_3166_1 === 'US')?.rating || '';
 
   const seasonData = await getSeasonData(tvId, show.seasons);
   const cast = credits?.cast?.slice(0, 20) || [];
@@ -75,16 +81,26 @@ export default async function TVDetailPage({ params }: { params: { readonly id: 
         trailer={trailer}
         mediaType="tv"
         status={show.status}
+        contentRating={usRating}
       />
 
       {/* Main Content with Sidebar */}
-      <div className="px-4 md:px-12 py-12">
+      <div className="px-4 md:px-8 lg:px-12 py-8 md:py-12">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-12">
             {/* Main Content */}
-            <div className="lg:col-span-3 space-y-12">
+            <div className="lg:col-span-3 space-y-10 md:space-y-12">
               {/* Overview */}
               <ExpandableOverview overview={show.overview} />
+
+              {/* Content Advisory */}
+              {usRating && (
+                <ContentAdvisory
+                  rating={usRating}
+                  mediaType="tv"
+                  contentRatings={contentRatings.results}
+                />
+              )}
 
               {/* Seasons */}
               <SeasonSelector
@@ -100,20 +116,7 @@ export default async function TVDetailPage({ params }: { params: { readonly id: 
 
               {/* Crew Section */}
               {credits && credits.crew && credits.crew.length > 0 && (
-                <section>
-                  <h2 className="text-xl font-semibold text-white mb-6">Key Crew</h2>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {credits.crew
-                      .filter((c: any) => ['Creator', 'Executive Producer', 'Producer', 'Writer'].includes(c.job))
-                      .slice(0, 6)
-                      .map((person: any) => (
-                        <div key={person.id} className="glass rounded-lg p-4">
-                          <p className="text-white font-medium">{person.name}</p>
-                          <p className="text-gray-400 text-sm">{person.job}</p>
-                        </div>
-                      ))}
-                  </div>
-                </section>
+                <CrewSection crew={credits.crew} mediaType="tv" />
               )}
 
               {/* Photos */}

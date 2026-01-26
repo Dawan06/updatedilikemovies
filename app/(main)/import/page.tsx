@@ -5,10 +5,12 @@ import { Upload, FileText, CheckCircle, XCircle, Loader2, Info, LogIn, Plus } fr
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { useWatchlist } from '@/lib/hooks/useWatchlist';
+import { useToast } from '@/lib/contexts/ToastContext';
 
 export default function ImportPage() {
   const { isSignedIn, isLoaded: authLoaded } = useUser();
   const { refresh } = useWatchlist();
+  const toast = useToast();
 
   // Show sign-in prompt for guests
   if (authLoaded && !isSignedIn) {
@@ -101,7 +103,7 @@ export default function ImportPage() {
 
   const handleImport = async () => {
     if (!file || !source) {
-      alert('Please select a file and source type');
+      toast.showWarning('Please select a file and source type');
       return;
     }
 
@@ -161,9 +163,17 @@ export default function ImportPage() {
                 });
                 await refresh();
                 setLoading(false);
+                const addedCount = data.added || 0;
+                const skippedCount = data.skipped || 0;
+                if (addedCount > 0) {
+                  toast.showSuccess(`Import complete! ${addedCount} item${addedCount !== 1 ? 's' : ''} added${skippedCount > 0 ? `, ${skippedCount} skipped` : ''}`);
+                } else {
+                  toast.showInfo(`Import complete. ${skippedCount} item${skippedCount !== 1 ? 's were' : ' was'} skipped (already in watchlist)`);
+                }
               } else if (data.type === 'error') {
                 setResult({ success: false, error: data.message });
                 setLoading(false);
+                toast.showError(data.message || 'Import failed');
               }
             } catch (e) {
               console.error('Failed to parse SSE message:', e);
@@ -173,8 +183,10 @@ export default function ImportPage() {
       }
     } catch (error) {
       console.error('Import error:', error);
-      setResult({ success: false, error: 'Failed to import watchlist' });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to import watchlist';
+      setResult({ success: false, error: errorMessage });
       setLoading(false);
+      toast.showError(errorMessage);
     }
   };
 

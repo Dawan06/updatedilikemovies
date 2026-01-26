@@ -8,22 +8,31 @@ import {
   Upload, Menu, X, ChevronDown, LogIn, Grid3x3, Sparkles
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import MovieWizard from '@/components/wizard/MovieWizard';
+import { useSearchSuggestions } from '@/lib/hooks/useSearchSuggestions';
+import { getRecentSearches, addRecentSearch, clearRecentSearches } from '@/lib/utils/search-storage';
 
 export default function Navbar() {
   const { user, isSignedIn, isLoaded } = useUser();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  
+  const recentSearches = getRecentSearches();
+  const { suggestions, loading: suggestionsLoading } = useSearchSuggestions(searchQuery, isSearchOpen && searchQuery.length >= 2);
 
   // Handle scroll effect
   useEffect(() => {
@@ -50,11 +59,43 @@ export default function Navbar() {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node) && isSearchOpen) {
         setIsSearchOpen(false);
         setSearchQuery('');
+        setShowSuggestions(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isSearchOpen]);
+
+  const handleSearch = (query: string) => {
+    if (!query.trim()) return;
+    
+    addRecentSearch(query);
+    const params = new URLSearchParams();
+    params.set('search', query);
+
+    if (pathname === '/browse') {
+      const mediaType = searchParams.get('media_type');
+      const genres = searchParams.get('genres');
+      const yearFrom = searchParams.get('year_from');
+      const yearTo = searchParams.get('year_to');
+      const ratingMin = searchParams.get('rating_min');
+      const language = searchParams.get('language');
+      const sortBy = searchParams.get('sort_by');
+
+      if (mediaType && mediaType !== 'all') params.set('media_type', mediaType);
+      if (genres) params.set('genres', genres);
+      if (yearFrom) params.set('year_from', yearFrom);
+      if (yearTo) params.set('year_to', yearTo);
+      if (ratingMin) params.set('rating_min', ratingMin);
+      if (language) params.set('language', language);
+      if (sortBy && sortBy !== 'popularity.desc') params.set('sort_by', sortBy);
+    }
+
+    router.push(`/browse?${params.toString()}`);
+    setIsSearchOpen(false);
+    setSearchQuery('');
+    setShowSuggestions(false);
+  };
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -82,8 +123,8 @@ export default function Navbar() {
     <>
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
-            ? 'bg-netflix-black/95 backdrop-blur-md shadow-lg'
-            : 'bg-gradient-to-b from-black/80 to-transparent'
+          ? 'bg-netflix-black/95 backdrop-blur-md shadow-lg'
+          : 'bg-gradient-to-b from-black/80 to-transparent'
           }`}
       >
         <div className="max-w-[1920px] mx-auto px-4 md:px-8 lg:px-12">
@@ -91,9 +132,10 @@ export default function Navbar() {
             {/* Left Section: Logo + Nav Links */}
             <div className="flex items-center gap-8">
               {/* Logo */}
+              {/* Logo - Hide on mobile when search is open */}
               <Link
                 href="/"
-                className="flex items-center gap-2 flex-shrink-0 transition-transform duration-300 hover:scale-105"
+                className={`flex items-center gap-2 flex-shrink-0 transition-transform duration-300 hover:scale-105 ${isSearchOpen ? 'hidden md:flex' : 'flex'}`}
               >
                 <Image
                   src="/logo.png"
@@ -119,8 +161,8 @@ export default function Navbar() {
                       key={link.href}
                       href={link.href}
                       className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${active
-                          ? 'text-white'
-                          : 'text-gray-300 hover:text-white hover:bg-white/10'
+                        ? 'text-white'
+                        : 'text-gray-300 hover:text-white hover:bg-white/10'
                         }`}
                     >
                       <Icon className="w-4 h-4" />
@@ -158,7 +200,7 @@ export default function Navbar() {
                     <Search className="w-5 h-5" />
                   </button>
                 ) : (
-                  <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-4 py-2.5 shadow-lg animate-fade-in transition-all duration-200 hover:border-white/30 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20">
+                  <div className={`${isSearchOpen ? 'fixed inset-x-4 top-[14px] z-50 w-[calc(100%-2rem)] md:w-auto md:static md:inset-auto' : ''} flex items-center gap-2.5 bg-netflix-dark/95 md:bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-4 py-2.5 shadow-lg animate-fade-in transition-all duration-200 hover:border-white/30 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20`}>
                     <Search className="w-4 h-4 text-gray-300 flex-shrink-0" />
                     <input
                       ref={searchRef}
@@ -168,37 +210,38 @@ export default function Navbar() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && searchQuery.trim()) {
-                          // If on browse page, preserve filter params
-                          const params = new URLSearchParams();
-                          params.set('search', searchQuery);
-
-                          if (pathname === '/browse') {
-                            // Preserve existing filter params
-                            const mediaType = searchParams.get('media_type');
-                            const genres = searchParams.get('genres');
-                            const yearFrom = searchParams.get('year_from');
-                            const yearTo = searchParams.get('year_to');
-                            const ratingMin = searchParams.get('rating_min');
-                            const language = searchParams.get('language');
-                            const sortBy = searchParams.get('sort_by');
-
-                            if (mediaType && mediaType !== 'all') params.set('media_type', mediaType);
-                            if (genres) params.set('genres', genres);
-                            if (yearFrom) params.set('year_from', yearFrom);
-                            if (yearTo) params.set('year_to', yearTo);
-                            if (ratingMin) params.set('rating_min', ratingMin);
-                            if (language) params.set('language', language);
-                            if (sortBy && sortBy !== 'popularity.desc') params.set('sort_by', sortBy);
-                          }
-
-                          globalThis.location.href = `/browse?${params.toString()}`;
-                        }
-                        if (e.key === 'Escape') {
+                          handleSearch(searchQuery);
+                        } else if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          const maxIndex = suggestions.length + recentSearches.length - 1;
+                          setSelectedSuggestionIndex(prev => 
+                            prev < maxIndex ? prev + 1 : prev
+                          );
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : -1);
+                        } else if (e.key === 'Escape') {
                           setIsSearchOpen(false);
                           setSearchQuery('');
+                          setShowSuggestions(false);
+                        } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
+                          e.preventDefault();
+                          if (selectedSuggestionIndex < suggestions.length) {
+                            const suggestion = suggestions[selectedSuggestionIndex];
+                            handleSearch(suggestion.title);
+                          } else {
+                            const recentIndex = selectedSuggestionIndex - suggestions.length;
+                            handleSearch(recentSearches[recentIndex]);
+                          }
                         }
                       }}
-                      className="flex-1 bg-transparent text-white text-sm placeholder-gray-400 outline-none min-w-[200px] md:min-w-[300px] focus:placeholder-gray-500"
+                      onFocus={() => setShowSuggestions(true)}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setShowSuggestions(true);
+                        setSelectedSuggestionIndex(-1);
+                      }}
+                      className="flex-1 bg-transparent text-white text-sm placeholder-gray-400 outline-none w-full md:min-w-[300px] focus:placeholder-gray-500"
                     />
                     {searchQuery ? (
                       <button
@@ -219,6 +262,101 @@ export default function Navbar() {
                       >
                         <X className="w-4 h-4" />
                       </button>
+                    )}
+                  </div>
+                )}
+                
+                {/* Search Suggestions Dropdown */}
+                {isSearchOpen && showSuggestions && (suggestions.length > 0 || recentSearches.length > 0) && (
+                  <div
+                    ref={suggestionsRef}
+                    className="absolute top-full left-0 right-0 mt-2 glass rounded-xl border border-white/10 shadow-2xl overflow-hidden z-50 max-h-[400px] overflow-y-auto scrollbar-hide"
+                  >
+                    {/* Suggestions */}
+                    {suggestions.length > 0 && (
+                      <div className="p-2">
+                        <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                          Suggestions
+                        </div>
+                        {suggestions.map((suggestion, index) => (
+                          <button
+                            key={`${suggestion.media_type}-${suggestion.id}`}
+                            onClick={() => handleSearch(suggestion.title)}
+                            onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-left ${
+                              selectedSuggestionIndex === index
+                                ? 'bg-white/10 text-white'
+                                : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                            }`}
+                          >
+                            {suggestion.poster_path ? (
+                              <Image
+                                src={`https://image.tmdb.org/t/p/w92${suggestion.poster_path}`}
+                                alt={suggestion.title}
+                                width={40}
+                                height={60}
+                                className="w-10 h-[60px] object-cover rounded flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-10 h-[60px] bg-netflix-gray rounded flex-shrink-0 flex items-center justify-center">
+                                <Film className="w-5 h-5 text-gray-600" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-white truncate">
+                                {suggestion.title}
+                              </div>
+                              <div className="text-xs text-gray-400 flex items-center gap-2 mt-0.5">
+                                <span className="capitalize">{suggestion.media_type}</span>
+                                {(suggestion.release_date || suggestion.first_air_date) && (
+                                  <>
+                                    <span>•</span>
+                                    <span>{(suggestion.release_date || suggestion.first_air_date)?.slice(0, 4)}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Recent Searches */}
+                    {recentSearches.length > 0 && (
+                      <div className="p-2 border-t border-white/10">
+                        <div className="flex items-center justify-between px-3 py-2">
+                          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                            Recent Searches
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              clearRecentSearches();
+                            }}
+                            className="text-xs text-gray-500 hover:text-white transition-colors"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        {recentSearches.map((recent, index) => {
+                          const suggestionIndex = suggestions.length + index;
+                          return (
+                            <button
+                              key={recent}
+                              onClick={() => handleSearch(recent)}
+                              onMouseEnter={() => setSelectedSuggestionIndex(suggestionIndex)}
+                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-left ${
+                                selectedSuggestionIndex === suggestionIndex
+                                  ? 'bg-white/10 text-white'
+                                  : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                              }`}
+                            >
+                              <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                              <span className="text-sm truncate">{recent}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 )}
@@ -333,8 +471,8 @@ export default function Navbar() {
                     key={link.href}
                     href={link.href}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all duration-200 ${active
-                        ? 'bg-primary text-white'
-                        : 'text-gray-300 hover:text-white hover:bg-white/10'
+                      ? 'bg-primary text-white'
+                      : 'text-gray-300 hover:text-white hover:bg-white/10'
                       }`}
                     style={{ animationDelay: `${index * 50}ms` }}
                   >

@@ -8,6 +8,7 @@ import TrailerPlayer from './TrailerPlayer';
 import PrePlayModal from '@/components/PrePlayModal';
 import { Genre } from '@/types';
 import { createProgressiveImageProps } from '@/lib/progressive-image-loader';
+import ContentRatingBadge from '@/components/ContentRatingBadge';
 
 interface HeroSectionProps {
   backdropPath: string | null;
@@ -21,6 +22,7 @@ interface HeroSectionProps {
   trailer?: { key: string; name: string } | null;
   mediaType: 'movie' | 'tv';
   status?: string;
+  contentRating?: string;
 }
 
 export default function HeroSection({
@@ -35,6 +37,7 @@ export default function HeroSection({
   trailer,
   mediaType,
   status,
+  contentRating,
 }: HeroSectionProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
   const parallaxOffset = useParallax(0.3);
@@ -62,7 +65,7 @@ export default function HeroSection({
   };
 
   return (
-    <div className="relative min-h-[90vh] lg:min-h-screen w-full overflow-hidden flex items-end font-sans">
+    <div className="relative min-h-[600px] md:min-h-[85vh] lg:min-h-[95vh] w-full overflow-hidden flex items-end font-sans">
       {/* Dynamic Background */}
       <div ref={backdropRef} className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-netflix-black" />
@@ -116,10 +119,13 @@ export default function HeroSection({
                 <span className="text-xs font-bold text-white tracking-wide">{rating.toFixed(1)}</span>
               </div>
             )}
+            {contentRating && (
+              <ContentRatingBadge rating={contentRating} size="md" />
+            )}
           </div>
 
           {/* Majestic Title */}
-          <h1 className="font-display font-black text-5xl md:text-7xl lg:text-8xl text-white leading-[0.9] tracking-tight drop-shadow-2xl animate-fade-in-up delay-100">
+          <h1 className="font-display font-black text-4xl sm:text-5xl md:text-7xl lg:text-8xl text-white leading-[0.9] tracking-tight drop-shadow-2xl animate-fade-in-up delay-100">
             {title}
           </h1>
 
@@ -152,9 +158,9 @@ export default function HeroSection({
           <div className="flex flex-wrap items-center gap-4 pt-4 animate-fade-in-up delay-500">
             <button
               onClick={handleWatchClick}
-              className="group relative flex items-center justify-center gap-3 px-8 py-4 bg-white text-black rounded-lg font-bold text-lg md:text-xl hover:bg-gray-200 transition-all duration-300 transform hover:scale-[1.02] shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.4)]"
+              className="group relative flex items-center justify-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-white text-black rounded-lg font-bold text-base md:text-xl hover:bg-gray-200 transition-all duration-300 transform hover:scale-[1.02] shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.4)]"
             >
-              <Play className="w-6 h-6 fill-black" />
+              <Play className="w-5 h-5 md:w-6 md:h-6 fill-black" />
               <span>Watch Now</span>
             </button>
 

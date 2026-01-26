@@ -17,6 +17,9 @@ export default function ContentCarousel({ title, seeAllHref, children, preloadPa
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const isDragging = useRef(false);
 
   // Preload images on initial render
   useEffect(() => {
@@ -73,6 +76,58 @@ export default function ContentCarousel({ title, seeAllHref, children, preloadPa
     });
   };
 
+  // Touch/swipe handlers for mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    isDragging.current = false;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    
+    const touchX = e.touches[0].clientX;
+    const touchY = e.touches[0].clientY;
+    const deltaX = touchX - touchStartX.current;
+    const deltaY = touchY - touchStartY.current;
+
+    // Determine if this is a horizontal swipe
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+      isDragging.current = true;
+      // Prevent default scrolling if we're swiping horizontally
+      if (scrollRef.current) {
+        scrollRef.current.style.scrollBehavior = 'auto';
+      }
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || !isDragging.current || !scrollRef.current) {
+      touchStartX.current = null;
+      touchStartY.current = null;
+      return;
+    }
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const deltaX = touchEndX - touchStartX.current;
+    const threshold = 50; // Minimum swipe distance
+
+    if (Math.abs(deltaX) > threshold) {
+      if (deltaX > 0 && canScrollLeft) {
+        scroll('left');
+      } else if (deltaX < 0 && canScrollRight) {
+        scroll('right');
+      }
+    }
+
+    // Restore smooth scrolling
+    scrollRef.current.style.scrollBehavior = 'smooth';
+    
+    touchStartX.current = null;
+    touchStartY.current = null;
+    isDragging.current = false;
+  };
+
   return (
     <section
       className="relative group/section mb-8"
@@ -101,7 +156,7 @@ export default function ContentCarousel({ title, seeAllHref, children, preloadPa
       <div className="relative">
         {/* Left Arrow - Netflix style: gradient fade with centered icon */}
         <div
-          className={`absolute left-0 top-0 bottom-4 w-12 md:w-14 z-30 flex items-center justify-center transition-opacity duration-300 ${canScrollLeft && isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          className={`hidden md:flex absolute left-0 top-0 bottom-4 w-12 md:w-14 z-30 items-center justify-center transition-opacity duration-300 ${canScrollLeft && isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-transparent" />
@@ -117,15 +172,18 @@ export default function ContentCarousel({ title, seeAllHref, children, preloadPa
         {/* Scrollable Content - Fixed height to prevent CLS */}
         <div
           ref={scrollRef}
-          className="flex gap-2 md:gap-3 overflow-x-auto scrollbar-hide scroll-smooth px-4 md:px-12 pb-4"
+          className="flex gap-2 md:gap-3 overflow-x-auto scrollbar-hide scroll-smooth px-4 md:px-12 pb-4 touch-pan-x"
           style={{ scrollSnapType: 'x mandatory', minHeight: '320px' }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
           {children}
         </div>
 
         {/* Right Arrow - Netflix style: gradient fade with centered icon */}
         <div
-          className={`absolute right-0 top-0 bottom-4 w-12 md:w-14 z-30 flex items-center justify-center transition-opacity duration-300 ${canScrollRight && isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          className={`hidden md:flex absolute right-0 top-0 bottom-4 w-12 md:w-14 z-30 items-center justify-center transition-opacity duration-300 ${canScrollRight && isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
         >
           <div className="absolute inset-0 bg-gradient-to-l from-black/90 via-black/60 to-transparent" />

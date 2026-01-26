@@ -2,10 +2,16 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Movie, TVShow, MediaItem } from '@/types';
-import { Film, Star } from 'lucide-react';
+import { Movie, TVShow, MediaItem, MovieDetails, TVShowDetails } from '@/types';
+import { Film, Star, Bookmark, BookmarkCheck, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { createProgressiveImageProps } from '@/lib/progressive-image-loader';
+import ContentRatingBadge from '@/components/ContentRatingBadge';
+import { useWatchlist } from '@/lib/hooks/useWatchlist';
+import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/lib/contexts/ToastContext';
+import MovieCardContextMenu from './MovieCardContextMenu';
 
 // Genre ID to name mapping (TMDB standard)
 const GENRE_MAP: Record<number, string> = {
@@ -32,6 +38,8 @@ interface CardItem {
   overview?: string;
   genre_ids?: number[];
   media_type?: 'movie' | 'tv';
+  certification?: string;
+  content_rating?: string;
 }
 
 interface MovieCardProps {
@@ -64,16 +72,53 @@ export default function MovieCard({
 }: MovieCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [fullQualityReady, setFullQualityReady] = useState(false);
-
+  const [isHovered, setIsHovered] = useState(false);
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  
+  const { isSignedIn } = useUser();
+  const router = useRouter();
+  const { isInWatchlist, addItem, removeItem } = useWatchlist();
+  const toast = useToast();
+  
   const type = mediaType || (item as MediaItem).media_type || 'movie';
+  const isBookmarked = isInWatchlist(item.id, type);
+
   const title = (item as Movie).title || (item as TVShow).name || '';
   const posterPath = item.poster_path;
   const year = ((item as Movie).release_date || (item as TVShow).first_air_date || '').slice(0, 4);
   const rating = item.vote_average || 0;
   const genreIds = (item as Movie | TVShow).genre_ids || [];
   const genres = genreIds.slice(0, 2).map(id => GENRE_MAP[id]).filter(Boolean);
+  const contentRating = (item as CardItem).certification || (item as CardItem).content_rating || (item as MovieDetails).certification || (item as TVShowDetails).content_rating;
 
   const progressiveProps = createProgressiveImageProps(posterPath, 'w300');
+  
+  const handleBookmarkClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!isSignedIn) {
+      router.push('/sign-in');
+      return;
+    }
+    
+    setBookmarkLoading(true);
+    try {
+      if (isBookmarked) {
+        await removeItem(item.id, type);
+        toast.showSuccess(`${title} removed from watchlist`);
+      } else {
+        await addItem(item.id, type);
+        toast.showSuccess(`${title} added to watchlist`);
+      }
+    } catch (error) {
+      console.error('Watchlist operation error:', error);
+      toast.showError(`Failed to ${isBookmarked ? 'remove from' : 'add to'} watchlist`);
+    } finally {
+      setBookmarkLoading(false);
+    }
+  };
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -87,12 +132,24 @@ export default function MovieCard({
     onDelete?.(item.id, type);
   };
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!showCheckbox && !showDeleteButton) {
+      setContextMenu({ x: e.clientX, y: e.clientY });
+    }
+  };
+
   return (
-    <Link
-      href={`/${type}/${item.id}`}
-      style={style}
-      className={`block group relative ${enableHover ? 'hover:scale-105 hover:z-20' : ''} transition-all duration-300 ease-out ${className}`}
-    >
+    <>
+      <Link
+        href={`/${type}/${item.id}`}
+        style={style}
+        className={`block group relative ${enableHover ? 'hover:scale-105 hover:z-20' : ''} transition-all duration-300 ease-out ${className}`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onContextMenu={handleContextMenu}
+      >
       {/* Checkbox for selection */}
       {showCheckbox && (
         <button
@@ -124,6 +181,40 @@ export default function MovieCard({
 
       {/* Card Container - Fixed aspect ratio to prevent CLS */}
       <div className="relative aspect-[2/3] rounded-md overflow-hidden bg-netflix-dark shadow-card transition-shadow duration-300" style={{ minHeight: '270px' }}>
+        {/* Bookmark Button - Top Right (on hover) */}
+        {enableHover && (
+          <button
+            onClick={handleBookmarkClick}
+            disabled={bookmarkLoading}
+            className={`absolute top-2 right-2 z-30 w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-300 ${
+              isHovered
+                ? 'opacity-100 scale-100'
+                : 'opacity-0 scale-90 pointer-events-none'
+            } ${
+              isBookmarked
+                ? 'bg-primary/90 hover:bg-primary text-white border-2 border-primary'
+                : 'bg-black/60 hover:bg-black/80 text-white border-2 border-white/40 hover:border-white/60'
+            }`}
+            title={isBookmarked ? 'Remove from watchlist' : 'Add to watchlist'}
+            aria-label={isBookmarked ? 'Remove from watchlist' : 'Add to watchlist'}
+          >
+            {bookmarkLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : isBookmarked ? (
+              <BookmarkCheck className="w-5 h-5 fill-current" />
+            ) : (
+              <Bookmark className="w-5 h-5" />
+            )}
+          </button>
+        )}
+
+        {/* Content Rating Badge - Top Right (below bookmark) */}
+        {contentRating && (
+          <div className={`absolute top-2 ${isHovered && enableHover ? 'right-14' : 'right-2'} z-10 transition-all duration-300`}>
+            <ContentRatingBadge rating={contentRating} size="sm" />
+          </div>
+        )}
+
         {/* Poster Image - Progressive Loading */}
         {posterPath ? (
           <Image
@@ -168,16 +259,22 @@ export default function MovieCard({
               </h3>
 
               {/* Rating & Year Row */}
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 {rating > 0 && (
                   <div className="flex items-center gap-1">
                     <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
                     <span className="text-white text-xs font-semibold">{rating.toFixed(1)}</span>
                   </div>
                 )}
+                {contentRating && (
+                  <>
+                    {rating > 0 && <span className="w-1 h-1 bg-gray-500 rounded-full" />}
+                    <ContentRatingBadge rating={contentRating} size="sm" />
+                  </>
+                )}
                 {year && (
                   <>
-                    <span className="w-1 h-1 bg-gray-500 rounded-full" />
+                    {(rating > 0 || contentRating) && <span className="w-1 h-1 bg-gray-500 rounded-full" />}
                     <span className="text-gray-300 text-xs">{year}</span>
                   </>
                 )}
@@ -205,5 +302,14 @@ export default function MovieCard({
         )}
       </div>
     </Link>
+    
+    {contextMenu && (
+      <MovieCardContextMenu
+        item={item}
+        position={contextMenu}
+        onClose={() => setContextMenu(null)}
+      />
+    )}
+    </>
   );
 }

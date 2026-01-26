@@ -226,6 +226,23 @@ class CachedTMDBClient {
         );
     }
 
+    // Release Dates & Certifications - 24 hour cache
+    async getMovieReleaseDates(id: number) {
+        return fetchOptimized(
+            `movie-release-dates-${id}`,
+            () => tmdbClient.getMovieReleaseDates(id),
+            86400
+        );
+    }
+
+    async getTVContentRatings(id: number) {
+        return fetchOptimized(
+            `tv-content-ratings-${id}`,
+            () => tmdbClient.getTVContentRatings(id),
+            86400
+        );
+    }
+
     // Collections - 24 hour cache
     async getCollectionDetails(collectionId: number) {
         return fetchOptimized(

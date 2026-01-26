@@ -26,10 +26,12 @@ export default async function WatchPage({
   let title = '';
   let episodes: Episode[] = [];
   let totalSeasons = 0;
+  let runtime: number | undefined;
 
   if (params.type === 'movie') {
     const movie = await cachedTmdbClient.getMovieDetails(tmdbId);
     title = movie.title;
+    runtime = movie.runtime;
   } else {
     const [show, seasonData] = await Promise.all([
       cachedTmdbClient.getTVDetails(tmdbId),
@@ -58,6 +60,7 @@ export default async function WatchPage({
       episode={episode}
       episodes={episodes}
       totalSeasons={totalSeasons}
+      runtime={runtime}
     />
   );
 }

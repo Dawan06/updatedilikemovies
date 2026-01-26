@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { registerServiceWorker } from './service-worker';
+import { ToastProvider } from './contexts/ToastContext';
 
 export function Providers({ children }: { children: React.ReactNode }) {
     // Create QueryClient inside component to avoid sharing between requests
@@ -28,7 +29,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
     return (
         <QueryClientProvider client={queryClient}>
-            {children}
+            <ToastProvider>
+                {children}
+            </ToastProvider>
         </QueryClientProvider>
     );
 }

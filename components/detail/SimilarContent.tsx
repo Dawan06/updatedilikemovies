@@ -45,28 +45,30 @@ export default function SimilarContent({ items, recommendations, mediaType }: Si
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-white">More Like This</h2>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3 flex-1">
+          <div className="w-1 h-8 bg-primary rounded-full" />
+          <h2 className="text-2xl font-bold text-white">More Like This</h2>
+          <div className="flex-1 h-px bg-gradient-to-r from-white/20 to-transparent" />
+        </div>
         <div className="flex gap-2">
           <button
             onClick={() => scroll('left')}
             disabled={!canScrollLeft}
-            className={`p-2 rounded-full transition-colors ${
-              canScrollLeft 
-                ? 'bg-white/10 hover:bg-white/20 text-white' 
+            className={`hidden md:block p-2 rounded-full transition-colors ${canScrollLeft
+                ? 'bg-white/10 hover:bg-white/20 text-white'
                 : 'bg-white/5 text-white/30 cursor-not-allowed'
-            }`}
+              }`}
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
             onClick={() => scroll('right')}
             disabled={!canScrollRight}
-            className={`p-2 rounded-full transition-colors ${
-              canScrollRight 
-                ? 'bg-white/10 hover:bg-white/20 text-white' 
+            className={`hidden md:block p-2 rounded-full transition-colors ${canScrollRight
+                ? 'bg-white/10 hover:bg-white/20 text-white'
                 : 'bg-white/5 text-white/30 cursor-not-allowed'
-            }`}
+              }`}
           >
             <ChevronRight className="w-5 h-5" />
           </button>

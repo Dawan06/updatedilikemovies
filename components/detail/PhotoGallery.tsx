@@ -86,8 +86,12 @@ export default function PhotoGallery({ backdrops, posters, title }: PhotoGallery
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-white">Photos</h2>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3 flex-1">
+          <div className="w-1 h-8 bg-primary rounded-full" />
+          <h2 className="text-2xl font-bold text-white">Photos</h2>
+          <div className="flex-1 h-px bg-gradient-to-r from-white/20 to-transparent" />
+        </div>
         <div className="flex gap-2">
           <button
             onClick={() => scroll('left')}

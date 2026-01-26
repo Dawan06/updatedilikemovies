@@ -24,13 +24,13 @@ export default function Footer() {
     };
 
     return (
-        <footer className="relative bg-black pt-16 pb-8 overflow-hidden border-t border-white/5">
+        <footer className="relative bg-black pt-10 md:pt-16 pb-8 overflow-hidden border-t border-white/5">
             {/* Background Gradients */}
             <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[128px] pointer-events-none" />
             <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-[128px] pointer-events-none" />
 
             <div className="container mx-auto px-4 md:px-12 relative z-10">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12 mb-12">
                     {/* Brand Section */}
                     <div className="space-y-6">
                         <Link href="/" className="flex items-center gap-2 group">
@@ -96,7 +96,7 @@ export default function Footer() {
                             <li>
                                 <button
                                     onClick={scrollToTop}
-                                    className="text-gray-400 hover:text-primary hover:translate-x-1 transition-all duration-300 inline-flex items-center gap-2 group"
+                                    className="text-gray-400 hover:text-primary hover:translate-x-1 transition-all duration-300 inline-flex items-center gap-2 group py-1"
                                 >
                                     <ArrowUp className="w-4 h-4 group-hover:-translate-y-1 transition-transform" />
                                     Back to Top
@@ -108,7 +108,7 @@ export default function Footer() {
 
                 {/* Bottom Bar */}
                 <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <p className="text-gray-500 text-sm">
+                    <p className="text-gray-500 text-sm text-center md:text-left">
                         © {new Date().getFullYear()} ILikeMovies. All rights reserved.
                     </p>
 

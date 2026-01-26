@@ -293,6 +293,34 @@ class TMDBClient {
   }> {
     return this.fetch(`/collection/${collectionId}/images`);
   }
+
+  // Release Dates & Certifications (Movies)
+  async getMovieReleaseDates(id: number): Promise<{
+    id: number;
+    results: Array<{
+      iso_3166_1: string;
+      release_dates: Array<{
+        certification: string;
+        iso_639_1: string;
+        note: string;
+        release_date: string;
+        type: number;
+      }>;
+    }>;
+  }> {
+    return this.fetch(`/movie/${id}/release_dates`);
+  }
+
+  // Content Ratings (TV Shows)
+  async getTVContentRatings(id: number): Promise<{
+    id: number;
+    results: Array<{
+      iso_3166_1: string;
+      rating: string;
+    }>;
+  }> {
+    return this.fetch(`/tv/${id}/content_ratings`);
+  }
 }
 
 export const tmdbClient = new TMDBClient();

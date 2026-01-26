@@ -48,13 +48,19 @@ export default function SeasonSelector({ tvId, showName, seasons }: SeasonSelect
     <div className="animate-fade-in-up">
       {/* Season Dropdown */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl md:text-2xl font-semibold text-white flex items-center gap-2">
-          <Film className="w-5 h-5 text-primary" />
-          Episodes
-          <span className="text-sm font-normal text-gray-400 ml-2">
-            ({totalEpisodes} episodes)
-          </span>
-        </h2>
+        <div className="flex items-center gap-3 flex-1">
+          <div className="w-1 h-8 bg-primary rounded-full" />
+          <div className="flex items-center gap-2">
+            <Film className="w-5 h-5 text-primary" />
+            <h2 className="text-2xl font-bold text-white">
+              Episodes
+              <span className="text-sm font-normal text-gray-400 ml-2">
+                ({totalEpisodes} episodes)
+              </span>
+            </h2>
+          </div>
+          <div className="flex-1 h-px bg-gradient-to-r from-white/20 to-transparent" />
+        </div>
         
         <div className="relative">
           <button

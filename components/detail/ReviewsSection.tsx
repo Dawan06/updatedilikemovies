@@ -73,14 +73,18 @@ export default function ReviewsSection({ reviews, totalResults }: ReviewsSection
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-white">
-          Reviews <span className="text-gray-400 text-base font-normal">({totalResults})</span>
-        </h2>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3 flex-1">
+          <div className="w-1 h-8 bg-primary rounded-full" />
+          <h2 className="text-2xl font-bold text-white">
+            Reviews <span className="text-gray-400 text-base font-normal">({totalResults})</span>
+          </h2>
+          <div className="flex-1 h-px bg-gradient-to-r from-white/20 to-transparent" />
+        </div>
         {hasMore && (
           <button
             onClick={() => setShowAll(!showAll)}
-            className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
+            className="text-primary hover:text-primary/80 text-sm font-medium transition-colors ml-4"
           >
             {showAll ? 'Show Less' : `View All (${totalResults})`}
           </button>

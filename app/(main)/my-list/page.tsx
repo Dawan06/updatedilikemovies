@@ -11,6 +11,9 @@ import {
 import MovieCard from '@/components/movie-card/MovieCard';
 import { useWatchlist } from '@/lib/hooks/useWatchlist';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { useToast } from '@/lib/contexts/ToastContext';
+import WatchlistStats from '@/components/watchlist/WatchlistStats';
+import { Download } from 'lucide-react';
 
 interface WatchlistItemWithDetails {
   tmdb_id: number;
@@ -38,6 +41,7 @@ type SortType = 'added' | 'title' | 'year';
 export default function MyListPage() {
   const { isSignedIn, isLoaded: authLoaded } = useUser();
   const { items: watchlistItems, loading: watchlistLoading, error: watchlistError, removeItem, refresh } = useWatchlist();
+  const toast = useToast();
   const [items, setItems] = useState<WatchlistItemWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -235,9 +239,10 @@ export default function MyListPage() {
       setSelectMode(false);
       await refresh();
       await loadWatchlistDetails();
+      toast.showSuccess(`${selectedItems.size} item${selectedItems.size !== 1 ? 's' : ''} removed from watchlist`);
     } catch (err) {
       console.error('[MyList] Error in bulk delete:', err);
-      // In a real app, use toast here
+      toast.showError('Failed to remove items from watchlist');
     }
   };
 
@@ -254,6 +259,32 @@ export default function MyListPage() {
     const randomIndex = Math.floor(Math.random() * filteredItems.length);
     const item = filteredItems[randomIndex];
     window.location.href = `/${item.media_type}/${item.tmdb_id}`;
+  };
+
+  const handleExport = () => {
+    try {
+      const exportData = items.map(item => ({
+        tmdb_id: item.tmdb_id,
+        media_type: item.media_type,
+        title: item.details?.title || item.details?.name || '',
+        status: item.status,
+        added_at: item.added_at,
+      }));
+
+      const json = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `watchlist-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.showSuccess('Watchlist exported successfully');
+    } catch (error) {
+      toast.showError('Failed to export watchlist');
+    }
   };
 
   // Stats for the Dashboard
@@ -384,6 +415,15 @@ export default function MyListPage() {
                 <Shuffle className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
               </button>
 
+              {/* Export Button */}
+              <button
+                onClick={handleExport}
+                className="p-2.5 bg-black/20 border border-white/5 rounded-xl text-gray-400 hover:text-primary hover:border-primary/30 transition-all group"
+                title="Export Watchlist"
+              >
+                <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              </button>
+
               {/* Select Mode Toggle */}
               <button
                 onClick={() => { setSelectMode(!selectMode); setSelectedItems(new Set()); }}
@@ -436,6 +476,16 @@ export default function MyListPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 📊 Statistics */}
+      <div className="px-4 md:px-12 max-w-[1800px] mx-auto mb-8">
+        <WatchlistStats items={items.map(item => ({
+          tmdb_id: item.tmdb_id,
+          media_type: item.media_type,
+          status: item.status,
+          details: item.details,
+        }))} />
+      </div>
 
       {/* 🖼️ The Grid */}
       <div className="px-4 md:px-12 max-w-[1800px] mx-auto min-h-[400px]">

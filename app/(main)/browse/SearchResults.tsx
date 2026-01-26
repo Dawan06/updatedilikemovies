@@ -5,7 +5,8 @@ import { MediaItem } from '@/types';
 import FilterBadges from './FilterBadges';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Film } from 'lucide-react';
+import { Film, ChevronRight } from 'lucide-react';
+import { highlightSearchTerm } from '@/lib/utils/search-highlight';
 
 async function getGenres() {
   const [movieGenresData, tvGenresData] = await Promise.all([
@@ -138,82 +139,128 @@ export default async function SearchResults({ query, page, filters }: SearchResu
     (filters.sort_by && filters.sort_by !== 'popularity.desc')
   );
 
-  const collections = collectionData.results.slice(0, 4); // Show top 4 collections
+  const collections = collectionData.results.slice(0, 8); // Show top 8 collections
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white">
-          Search Results for &quot;{query}&quot;
-        </h1>
+    <div className="pt-8 pb-12 px-4 md:px-8 lg:px-12">
+      {/* Header Section */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-1 h-8 bg-primary rounded-full" />
+          <h1 className="text-3xl md:text-4xl font-bold text-white">
+            Search Results for &quot;<span className="text-primary">{query}</span>&quot;
+          </h1>
+        </div>
+        {totalResults > 0 && (
+          <p className="text-gray-400 text-sm ml-4">
+            {totalResults.toLocaleString()} {totalResults === 1 ? 'result' : 'results'} found
+            {hasActiveFilters && filteredResults.length !== totalResults && (
+              <span className="ml-2">
+                ({filteredResults.length} after filters)
+              </span>
+            )}
+          </p>
+        )}
       </div>
 
       {/* Show active filters */}
       {hasActiveFilters && (
-        <div className="mb-6">
+        <div className="mb-8">
           <FilterBadges filters={filters} query={query} movieGenres={movieGenres} tvGenres={tvGenres} />
         </div>
       )}
 
       {/* Franchise/Collection Results Section */}
       {collections.length > 0 && (
-        <div className="mb-10 animate-fade-in-up">
-          <div className="flex items-center gap-3 mb-4">
-            <Film className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-bold text-white">Franchises & Collections</h2>
+        <div className="mb-12 animate-fade-in-up">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-1 h-6 bg-primary rounded-full" />
+            <div className="flex items-center gap-2">
+              <Film className="w-5 h-5 text-primary" />
+              <h2 className="text-2xl font-bold text-white">Franchises & Collections</h2>
+            </div>
+            <div className="flex-1 h-px bg-gradient-to-r from-white/20 to-transparent" />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {collections.map((collection) => (
-              <Link
-                key={collection.id}
-                href={`/franchise/${collection.id}`}
-                className="group relative aspect-video rounded-xl overflow-hidden bg-white/5 border border-white/10 hover:border-primary/50 transition-all duration-300 shadow-lg hover:shadow-primary/20"
-              >
-                {collection.backdrop_path ? (
-                  <Image
-                    src={`https://image.tmdb.org/t/p/w500${collection.backdrop_path}`}
-                    alt={collection.name}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-netflix-gray to-netflix-dark flex items-center justify-center">
-                    <Film className="w-8 h-8 text-white/20" />
+          <div className="overflow-x-auto scrollbar-hide -mx-4 md:-mx-8 lg:-mx-12 px-4 md:px-8 lg:px-12">
+            <div className="flex gap-4 pb-4" style={{ scrollSnapType: 'x mandatory' }}>
+              {collections.map((collection) => (
+                <Link
+                  key={collection.id}
+                  href={`/franchise/${collection.id}`}
+                  className="group relative flex-shrink-0 w-[280px] md:w-[320px] aspect-video rounded-xl overflow-hidden bg-white/5 border border-white/10 hover:border-primary/50 transition-all duration-300 shadow-lg hover:shadow-primary/20"
+                  style={{ scrollSnapAlign: 'start' }}
+                >
+                  {collection.backdrop_path ? (
+                    <Image
+                      src={`https://image.tmdb.org/t/p/w780${collection.backdrop_path}`}
+                      alt={collection.name}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      sizes="(max-width: 768px) 280px, 320px"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-netflix-gray to-netflix-dark flex items-center justify-center">
+                      <Film className="w-12 h-12 text-white/20" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <h3 className="text-white font-bold text-lg md:text-xl leading-tight group-hover:text-primary transition-colors mb-2 line-clamp-2">
+                      {highlightSearchTerm(collection.name, query)}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-white/70 uppercase tracking-wider bg-white/10 px-2 py-1 rounded">
+                        Collection
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                    </div>
                   </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-4">
-                  <h3 className="text-white font-bold text-lg leading-tight group-hover:text-primary transition-colors">
-                    {collection.name}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs font-medium text-white/60 uppercase tracking-wider">Collection</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Main Results */}
+      {/* Main Results Section */}
       {filteredResults.length === 0 && collections.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-gray-400 mb-2">
-            {hasActiveFilters
-              ? 'No results match your search and filters.'
-              : 'No results found.'
-            }
-          </p>
-          {hasActiveFilters && (
-            <p className="text-gray-500 text-sm">
-              Try adjusting your filters or search query.
+        <div className="text-center py-16">
+          <div className="max-w-md mx-auto">
+            <Film className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <p className="text-gray-400 text-lg mb-2 font-medium">
+              {hasActiveFilters
+                ? 'No results match your search and filters'
+                : 'No results found'}
             </p>
-          )}
+            {hasActiveFilters ? (
+              <p className="text-gray-500 text-sm">
+                Try adjusting your filters or search query to find what you're looking for.
+              </p>
+            ) : (
+              <p className="text-gray-500 text-sm">
+                Try a different search term or browse our collection.
+              </p>
+            )}
+          </div>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mb-8">
+          {filteredResults.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-1 h-6 bg-primary rounded-full" />
+                <h2 className="text-2xl font-bold text-white">
+                  {collections.length > 0 ? 'Movies & TV Shows' : 'Results'}
+                </h2>
+                <div className="flex-1 h-px bg-gradient-to-r from-white/20 to-transparent" />
+                <span className="text-gray-400 text-sm">
+                  {filteredResults.length} {filteredResults.length === 1 ? 'item' : 'items'}
+                </span>
+              </div>
+            </div>
+          )}
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6 mb-8">
             {filteredResults.map((item) => (
               <MovieCard
                 key={`${item.media_type}-${item.id}`}
@@ -225,12 +272,14 @@ export default async function SearchResults({ query, page, filters }: SearchResu
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <SearchPagination
-              currentPage={page}
-              totalPages={totalPages}
-              query={query}
-              filters={filters}
-            />
+            <div className="mt-12">
+              <SearchPagination
+                currentPage={page}
+                totalPages={totalPages}
+                query={query}
+                filters={filters}
+              />
+            </div>
           )}
         </>
       )}

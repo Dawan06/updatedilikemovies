@@ -12,6 +12,7 @@ interface VideoPlayerWrapperProps {
   episode?: number;
   episodes?: Episode[];
   totalSeasons?: number;
+  runtime?: number;
 }
 
 export default function VideoPlayerWrapper({ 
@@ -22,7 +23,8 @@ export default function VideoPlayerWrapper({
   season,
   episode,
   episodes,
-  totalSeasons 
+  totalSeasons,
+  runtime
 }: VideoPlayerWrapperProps) {
   return (
     <FastStreamPlayer 
@@ -33,6 +35,9 @@ export default function VideoPlayerWrapper({
       currentEpisode={episode}
       episodes={episodes}
       totalSeasons={totalSeasons}
+      tmdbId={tmdbId}
+      mediaType={mediaType}
+      runtime={runtime}
     />
   );
 }

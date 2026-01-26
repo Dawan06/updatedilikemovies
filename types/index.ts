@@ -54,6 +54,27 @@ export interface MovieDetails extends Movie {
     poster_path: string | null;
     backdrop_path: string | null;
   } | null;
+  certification?: string; // US rating (e.g., "PG-13", "R")
+}
+
+export interface TVShowDetails extends TVShow {
+  genres: Genre[];
+  episode_run_time: number[];
+  production_companies: ProductionCompany[];
+  production_countries: ProductionCountry[];
+  spoken_languages: SpokenLanguage[];
+  status: string;
+  tagline: string;
+  number_of_seasons: number;
+  number_of_episodes: number;
+  seasons: Season[];
+  networks: Network[];
+  created_by?: Array<{
+    id: number;
+    name: string;
+    profile_path: string | null;
+  }>;
+  content_rating?: string; // US rating (e.g., "TV-14", "TV-MA")
 }
 
 export interface TVShowDetails extends TVShow {

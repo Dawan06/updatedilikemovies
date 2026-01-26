@@ -46,11 +46,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function HomePage() {
   // Fetch all content data in parallel (now with caching!)
-  const [trendingMovies, trendingTV, topRatedMovies, popularMovies] = await Promise.all([
+  const [trendingMovies, trendingTV, topRatedMovies, popularMovies, animeTV] = await Promise.all([
     cachedTmdbClient.getTrendingMovies(1),
     cachedTmdbClient.getTrendingTV(1),
     cachedTmdbClient.getTopRatedMovies(1),
     cachedTmdbClient.getPopularMovies(1),
+    cachedTmdbClient.discoverTV({ with_genres: '16', sort_by: 'popularity.desc', page: '1' }), // Anime genre ID is 16
   ]);
 
   // Get top 5 trending movies for hero slideshow
@@ -163,7 +164,7 @@ export default async function HomePage() {
           {/* Trending Movies */}
           <ContentCarousel title="Trending Movies" seeAllHref="/browse?category=trending">
             {trendingMovies.results.slice(0, 20).map((m, i) => (
-              <div key={m.id} className="flex-shrink-0 w-[180px] md:w-[220px] scroll-snap-align-start">
+              <div key={m.id} className="flex-shrink-0 w-[140px] sm:w-[180px] md:w-[220px] scroll-snap-align-start">
                 <MovieCard item={m} mediaType="movie" priority={i < 6} index={i} enableHover={true} />
               </div>
             ))}
@@ -172,7 +173,7 @@ export default async function HomePage() {
           {/* Trending TV Shows */}
           <ContentCarousel title="Trending Shows" seeAllHref="/browse?category=tv">
             {trendingTV.results.slice(0, 20).map((t, i) => (
-              <div key={t.id} className="flex-shrink-0 w-[180px] md:w-[220px] scroll-snap-align-start">
+              <div key={t.id} className="flex-shrink-0 w-[140px] sm:w-[180px] md:w-[220px] scroll-snap-align-start">
                 <MovieCard item={t} mediaType="tv" index={i} enableHover={true} />
               </div>
             ))}
@@ -181,8 +182,17 @@ export default async function HomePage() {
           {/* Top Rated */}
           <ContentCarousel title="Top Rated" seeAllHref="/browse?category=top-rated">
             {topRatedMovies.results.slice(0, 20).map((m, i) => (
-              <div key={m.id} className="flex-shrink-0 w-[180px] md:w-[220px] scroll-snap-align-start">
+              <div key={m.id} className="flex-shrink-0 w-[140px] sm:w-[180px] md:w-[220px] scroll-snap-align-start">
                 <MovieCard item={m} mediaType="movie" index={i} enableHover={true} />
+              </div>
+            ))}
+          </ContentCarousel>
+
+          {/* Anime */}
+          <ContentCarousel title="Anime" seeAllHref="/browse?category=anime">
+            {animeTV.results.slice(0, 20).map((t, i) => (
+              <div key={t.id} className="flex-shrink-0 w-[140px] sm:w-[180px] md:w-[220px] scroll-snap-align-start">
+                <MovieCard item={t} mediaType="tv" index={i} enableHover={true} />
               </div>
             ))}
           </ContentCarousel>
