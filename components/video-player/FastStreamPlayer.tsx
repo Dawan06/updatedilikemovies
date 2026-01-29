@@ -956,38 +956,8 @@ export default function VideoPlayer({
             <div className="max-h-80 overflow-y-auto">
               {[...sources]
                 .map((source, i) => ({ source, index: i, status: serverStatuses.find(s => s.index === i) }))
-                // Filter out servers without valid ms stats (speed >= 10000 means not connected/tested)
-                .filter(({ status }) => {
-                  // Always show current server, even if no stats yet
-                  if (status && status.index === currentIndex) return true;
-                  // Only show servers with valid speed stats (connected and tested)
-                  return status && status.speed < 10000 && status.working !== false;
-                })
-                .sort((a, b) => {
-                  const statusA = a.status;
-                  const statusB = b.status;
-
-                  if (statusA && statusB) {
-                    const aWorking = statusA.working !== false && statusA.status !== 'failed';
-                    const bWorking = statusB.working !== false && statusB.status !== 'failed';
-                    if (aWorking && !bWorking) return -1;
-                    if (!aWorking && bWorking) return 1;
-
-                    if (aWorking && bWorking) {
-                      return statusA.speed - statusB.speed;
-                    }
-
-                    return statusA.speed - statusB.speed;
-                  }
-
-                  if (statusA && !statusB) return -1;
-                  if (!statusA && statusB) return 1;
-
-                  const qualityOrder: Record<string, number> = { 'HD+': 1, 'HD': 2, 'Auto': 3 };
-                  const qualityA = qualityOrder[a.source.quality] || 3;
-                  const qualityB = qualityOrder[b.source.quality] || 3;
-                  return qualityA - qualityB;
-                })
+                // Show by server name order: Server 1, Server 2, Server 3, Server 4, Server 5 (no reorder by speed)
+                .sort((a, b) => a.index - b.index)
                 .map(({ source, index: i, status }) => {
                   const isHighQuality = source.quality === 'HD+';
                   const isMediumQuality = source.quality === 'HD';

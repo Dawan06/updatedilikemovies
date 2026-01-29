@@ -145,7 +145,7 @@ export default function MovieCard({
       <Link
         href={`/${type}/${item.id}`}
         style={style}
-        className={`block group relative ${enableHover ? 'hover:scale-105 hover:z-20' : ''} transition-all duration-300 ease-out ${className}`}
+        className={`block group relative ${enableHover ? 'hover:z-20' : ''} transition-all duration-200 ease-out ${className}`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onContextMenu={handleContextMenu}
@@ -181,36 +181,30 @@ export default function MovieCard({
 
       {/* Card Container - Fixed aspect ratio to prevent CLS */}
       <div className="relative aspect-[2/3] rounded-md overflow-hidden bg-netflix-dark shadow-card transition-shadow duration-300" style={{ minHeight: '270px' }}>
-        {/* Bookmark Button - Top Right (on hover) */}
+        {/* Watchlist - Top right, fixed position so layout never shifts */}
         {enableHover && (
           <button
             onClick={handleBookmarkClick}
             disabled={bookmarkLoading}
-            className={`absolute top-2 right-2 z-30 w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-300 ${
-              isHovered
-                ? 'opacity-100 scale-100'
-                : 'opacity-0 scale-90 pointer-events-none'
-            } ${
-              isBookmarked
-                ? 'bg-primary/90 hover:bg-primary text-white border-2 border-primary'
-                : 'bg-black/60 hover:bg-black/80 text-white border-2 border-white/40 hover:border-white/60'
-            }`}
+            className={`absolute top-2 right-2 z-30 w-8 h-8 flex items-center justify-center rounded-md transition-[opacity] duration-200 ${
+              isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            } ${isBookmarked ? 'bg-primary text-white' : 'bg-black/70 text-white'}`}
             title={isBookmarked ? 'Remove from watchlist' : 'Add to watchlist'}
             aria-label={isBookmarked ? 'Remove from watchlist' : 'Add to watchlist'}
           >
             {bookmarkLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2.5} />
             ) : isBookmarked ? (
-              <BookmarkCheck className="w-5 h-5 fill-current" />
+              <BookmarkCheck className="w-4 h-4 fill-current" strokeWidth={2} />
             ) : (
-              <Bookmark className="w-5 h-5" />
+              <Bookmark className="w-4 h-4" strokeWidth={2} />
             )}
           </button>
         )}
 
-        {/* Content Rating Badge - Top Right (below bookmark) */}
+        {/* Content Rating Badge - Top right, left of watchlist so both visible and no shift */}
         {contentRating && (
-          <div className={`absolute top-2 ${isHovered && enableHover ? 'right-14' : 'right-2'} z-10 transition-all duration-300`}>
+          <div className="absolute top-2 right-11 z-10">
             <ContentRatingBadge rating={contentRating} size="sm" />
           </div>
         )}

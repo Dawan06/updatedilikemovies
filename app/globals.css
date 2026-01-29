@@ -500,9 +500,7 @@ a:focus-visible {
 iframe[class*="iframe-player"] {
   pointer-events: auto !important;
   cursor: default !important;
-}
-
-/* Fullscreen improvements */
+}/* Fullscreen improvements */
 :fullscreen .iframe-wrapper,
 :-webkit-full-screen .iframe-wrapper,
 :-moz-full-screen .iframe-wrapper,
@@ -518,4 +516,3 @@ iframe[class*="iframe-player"] {
   width: 100vw;
   height: 100vh;
 }
-
