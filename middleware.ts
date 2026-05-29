@@ -15,7 +15,7 @@ export default clerkMiddleware(
 
 // CRITICAL OPTIMIZATION: Only match protected routes
 // Before: Ran on ALL routes (1000s of executions)
-// After: Only runs on user-specific routes (<100 executions)
+// After: Only runs on user-specific routes (<100 executions) 
 export const config = {
   matcher: [
     // User-specific pages (require auth)
