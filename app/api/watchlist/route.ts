@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { 
-  getUserWatchlist, 
-  addToWatchlist as addToWatchlistDB, 
+import {
+  getUserWatchlist,
+  addToWatchlist as addToWatchlistDB,
   removeFromWatchlist as removeFromWatchlistDB,
   updateWatchlistStatus as updateWatchlistStatusDB
 } from '@/lib/supabase/helpers';
@@ -13,8 +13,8 @@ export const revalidate = 0; // No caching for user-specific data
 // GET - Fetch user's watchlist
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth();
-
+    const authResult = await auth();
+    const userId = authResult?.userId ?? null;
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -24,21 +24,21 @@ export async function GET(request: NextRequest) {
 
     console.log(`[GET /api/watchlist] Fetching watchlist for user: ${userId}`);
     const watchlist = await getUserWatchlist(userId);
-    
+
     console.log(`[GET /api/watchlist] Returning ${watchlist.length} items`);
     return NextResponse.json({ items: watchlist });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorDetails = error instanceof Error && 'details' in error ? String(error.details) : undefined;
-    
+
     console.error('[GET /api/watchlist] Error fetching watchlist:', {
       error: errorMessage,
       details: errorDetails,
       stack: error instanceof Error ? error.stack : undefined,
     });
-    
+
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to fetch watchlist',
         details: errorMessage,
         ...(errorDetails && { errorDetails }),
@@ -51,8 +51,8 @@ export async function GET(request: NextRequest) {
 // POST - Add item to watchlist
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
-
+    const authResult = await auth();
+    const userId = authResult?.userId ?? null;
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Adding to watchlist:', { userId, tmdb_id, media_type, status: status || 'plan_to_watch' });
-    
+
     const item = await addToWatchlistDB(
       userId,
       tmdb_id,
@@ -85,9 +85,9 @@ export async function POST(request: NextRequest) {
     console.error('Error adding to watchlist:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorDetails = error instanceof Error && 'details' in error ? String(error.details) : undefined;
-    
+
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to add to watchlist',
         details: errorMessage,
         ...(errorDetails && { errorDetails }),
@@ -100,8 +100,8 @@ export async function POST(request: NextRequest) {
 // DELETE - Remove item from watchlist
 export async function DELETE(request: NextRequest) {
   try {
-    const { userId } = await auth();
-
+    const authResult = await auth();
+    const userId = authResult?.userId ?? null;
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -134,8 +134,8 @@ export async function DELETE(request: NextRequest) {
 // PATCH - Batch add items (for imports)
 export async function PATCH(request: NextRequest) {
   try {
-    const { userId } = await auth();
-
+    const authResult = await auth();
+    const userId = authResult?.userId ?? null;
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -167,13 +167,13 @@ export async function PATCH(request: NextRequest) {
           added++;
         } catch (error: any) {
           const errorMessage = error?.message || String(error);
-          
+
           // Distinguish between "already exists" vs actual errors
           // Check for duplicate/unique constraint violations or explicit "already" messages
-          if (errorMessage?.includes('already') || 
-              errorMessage?.includes('duplicate') ||
-              error?.code === '23505' || // PostgreSQL unique violation
-              errorMessage?.includes('UNIQUE constraint')) {
+          if (errorMessage?.includes('already') ||
+            errorMessage?.includes('duplicate') ||
+            error?.code === '23505' || // PostgreSQL unique violation
+            errorMessage?.includes('UNIQUE constraint')) {
             skipped++;
           } else {
             // This is a real error (schema issue, network, etc.)
@@ -203,7 +203,7 @@ export async function PATCH(request: NextRequest) {
 
     // If all items failed, return error response to help debugging
     if (added === 0 && skipped === items.length && errors.length > 0) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: false,
         added: 0,
         skipped,
@@ -215,12 +215,12 @@ export async function PATCH(request: NextRequest) {
       }, { status: 207 }); // 207 Multi-Status - partial failure
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       added,
       skipped,
       total: items.length,
-      ...(errors.length > 0 && { 
+      ...(errors.length > 0 && {
         errorCount: errors.length,
         errors: errors.slice(0, 10), // Include first 10 errors for debugging
         warning: `${errors.length} items had errors but were counted as skipped`
@@ -238,8 +238,8 @@ export async function PATCH(request: NextRequest) {
 // PUT - Update watchlist item status
 export async function PUT(request: NextRequest) {
   try {
-    const { userId } = await auth();
-
+    const authResult = await auth();
+    const userId = authResult?.userId ?? null;
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -275,9 +275,9 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('Error updating watchlist status:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
+
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to update watchlist status',
         details: errorMessage,
       },

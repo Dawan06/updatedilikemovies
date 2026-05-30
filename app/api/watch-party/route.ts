@@ -4,8 +4,8 @@ import { NextRequest, NextResponse } from 'next/server';
 // Create watch party room
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
-
+    const authResult = await auth();
+    const userId = authResult?.userId ?? null;
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
 // Get watch party room
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth();
-
+    const authResult = await auth();
+    const userId = authResult?.userId ?? null;
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

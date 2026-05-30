@@ -8,8 +8,8 @@ export const revalidate = 0;
 // DELETE - Bulk remove multiple items from watchlist
 export async function DELETE(request: NextRequest) {
   try {
-    const { userId } = await auth();
-
+    const authResult = await auth();
+    const userId = authResult?.userId ?? null;
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },

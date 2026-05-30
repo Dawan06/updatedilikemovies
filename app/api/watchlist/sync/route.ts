@@ -12,8 +12,8 @@ interface LocalStorageItem {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
-
+    const authResult = await auth();
+    const userId = authResult?.userId ?? null;
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },

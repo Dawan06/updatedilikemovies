@@ -22,8 +22,8 @@ interface ProgressUpdate {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = auth();
-
+    const authResult = await auth();
+    const userId = authResult?.userId ?? null;
     if (!userId) {
       return new NextResponse('Unauthorized', { status: 401 });
     }

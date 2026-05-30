@@ -9,8 +9,8 @@ export const revalidate = 0; // No caching for user-specific data
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth();
-
+    const authResult = await auth();
+    const userId = authResult?.userId ?? null;
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },

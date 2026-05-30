@@ -76,7 +76,8 @@ export default async function HomePage() {
   let userTrailers: Record<number, Array<{ key: string; name: string; site: string; type: string }>> = {};
 
   try {
-    const { userId } = await auth();
+    const authResult = await auth();
+    const userId = authResult?.userId ?? null;
     if (userId) {
       // Fetch watchlist items server-side
       const watchlistItems = await getUserWatchlist(userId);
