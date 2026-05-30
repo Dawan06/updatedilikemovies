@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+Dockerfile
+docker-compose.yml
+dist
+.vscode
+.env
+.env.*
+pnpm-debug.log
