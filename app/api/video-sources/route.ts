@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
   const mediaType = searchParams.get('media_type') as 'movie' | 'tv' | null;
   const season = searchParams.get('season');
   const episode = searchParams.get('episode');
+  const proxyEnabled = searchParams.get('proxy') === '1' || searchParams.get('proxy') === 'true';
 
   if (!tmdbId || !mediaType) {
     return NextResponse.json(
@@ -21,12 +22,12 @@ export async function GET(request: NextRequest) {
     let sources;
 
     if (mediaType === 'movie') {
-      sources = await vidsrcClient.getMovieSources(parseInt(tmdbId, 10));
+      sources = await vidsrcClient.getMovieSources(parseInt(tmdbId, 10), { proxy: proxyEnabled });
     } else if (mediaType === 'tv') {
       // Default to season 1, episode 1 if not specified
       const s = season ? parseInt(season, 10) : 1;
       const e = episode ? parseInt(episode, 10) : 1;
-      sources = await vidsrcClient.getTVSources(parseInt(tmdbId, 10), s, e);
+      sources = await vidsrcClient.getTVSources(parseInt(tmdbId, 10), s, e, { proxy: proxyEnabled });
     } else {
       return NextResponse.json(
         { error: 'Invalid media type' },
@@ -34,7 +35,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ sources });
+    return NextResponse.json({
+      sources,
+      proxyEnabled,
+    });
   } catch (error) {
     console.error('Error fetching video sources:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

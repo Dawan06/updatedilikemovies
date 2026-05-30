@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { vidsrcClient } from '@/lib/vidsrc/vidsrc-client';
 
 function sanitizeHtml(html: string, baseOrigin: string) {
@@ -39,7 +39,17 @@ function sanitizeHtml(html: string, baseOrigin: string) {
     return html;
 }
 
-export async function GET(request: NextRequest) {
+function getProxyResponseHeaders(baseOrigin: string) {
+    return {
+        'Content-Type': 'text/html; charset=utf-8',
+        'X-Frame-Options': 'SAMEORIGIN',
+        'Content-Security-Policy': "frame-ancestors 'self'",
+        'Cache-Control': 'private, max-age=60',
+        'X-Proxy-Origin': baseOrigin,
+    };
+}
+
+async function handleProxyRequest(request: NextRequest, includeBody: boolean) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
     const id = searchParams.get('id');
@@ -102,68 +112,65 @@ export async function GET(request: NextRequest) {
             return new Response('Failed to fetch provider content', { status: resp.status });
         }
 
-        let html = await resp.text();
+        let html = includeBody ? await resp.text() : '';
         const baseOrigin = new URL(targetUrl).origin;
 
         // Apply sanitization rules (remove known ad scripts / inline popups)
-        html = sanitizeHtml(html, baseOrigin);
+        if (includeBody) {
+            html = sanitizeHtml(html, baseOrigin);
 
-        // Ensure there's a base tag so relative resources still resolve
-        if (!/\<base[^>]*\>/i.test(html)) {
-            const baseTag = `<base href="${baseOrigin}/">`;
-            html = html.replace(/<head[^>]*>/i, (m) => `${m}${baseTag}`);
-        }
+            // Ensure there's a base tag so relative resources still resolve
+            if (!/\<base[^>]*\>/i.test(html)) {
+                const baseTag = `<base href="${baseOrigin}/">`;
+                html = html.replace(/<head[^>]*>/i, (m) => `${m}${baseTag}`);
+            }
 
-        // Anti-popup / anti-redirect script injection
-        const antiAdScript = `
-            <script>
-                // Disable window.open/popups
-                try { window.open = function() { return null; }; } catch(e){}
+            // Anti-popup / anti-redirect script injection
+            const antiAdScript = `
+                <script>
+                    // Disable window.open/popups
+                    try { window.open = function() { return null; }; } catch(e){}
 
-                // Prevent direct location replace
-                try {
-                    Object.defineProperty(window, 'location', {
-                        get: function() { return window._location || location; },
-                        set: function(v) { console.log('Blocked redirect to', v); }
-                    });
-                } catch(e){}
+                    // Prevent direct location replace
+                    try {
+                        Object.defineProperty(window, 'location', {
+                            get: function() { return window._location || location; },
+                            set: function(v) { console.log('Blocked redirect to', v); }
+                        });
+                    } catch(e){}
 
-                document.addEventListener('click', function(e) {
-                    var t = e.target;
-                    while(t && t !== document.body) {
-                        if (t.tagName === 'A') {
-                            var href = t.getAttribute('href') || '';
-                            if (href && (href.indexOf('ads') !== -1 || href.indexOf('click') !== -1 || (href.startsWith('http') && href.indexOf('${baseOrigin}') === -1))) {
-                                e.preventDefault(); e.stopPropagation(); return false;
+                    document.addEventListener('click', function(e) {
+                        var t = e.target;
+                        while(t && t !== document.body) {
+                            if (t.tagName === 'A') {
+                                var href = t.getAttribute('href') || '';
+                                if (href && (href.indexOf('ads') !== -1 || href.indexOf('click') !== -1 || (href.startsWith('http') && href.indexOf('${baseOrigin}') === -1))) {
+                                    e.preventDefault(); e.stopPropagation(); return false;
+                                }
                             }
+                            t = t.parentElement;
                         }
-                        t = t.parentElement;
-                    }
-                }, true);
+                    }, true);
 
-                // Hide common ad overlays via CSS
-                try {
-                    var style = document.createElement('style');
-                    style.textContent = "\n                        [class*=\"ad\"], [id*=\"ad-\"], [class*=\"banner\"], [id*=\"banner\"],\n                        [class*=\"popup\"], .overlay, #overlay, .modal:not(.player-modal),\n                        iframe[src*=\"ads\"], iframe[src*=\"click\"] { display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }\n                    ";
-                    document.head.appendChild(style);
-                } catch(e){}
-            <\/script>
-        `;
+                    // Hide common ad overlays via CSS
+                    try {
+                        var style = document.createElement('style');
+                        style.textContent = "\n                        [class*=\"ad\"], [id*=\"ad-\"], [class*=\"banner\"], [id*=\"banner\"],\n                        [class*=\"popup\"], .overlay, #overlay, .modal:not(.player-modal),\n                        iframe[src*=\"ads\"], iframe[src*=\"click\"] { display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }\n                    ";
+                        document.head.appendChild(style);
+                    } catch(e){}
+                <\/script>
+            `;
 
-        if (/<\/head>/i.test(html)) {
-            html = html.replace(/<\/head>/i, `${antiAdScript}</head>`);
-        } else {
-            html = antiAdScript + html;
+            if (/<\/head>/i.test(html)) {
+                html = html.replace(/<\/head>/i, `${antiAdScript}</head>`);
+            } else {
+                html = antiAdScript + html;
+            }
         }
 
-        return new Response(html, {
+        return new Response(includeBody ? html : null, {
             status: 200,
-            headers: {
-                'Content-Type': 'text/html; charset=utf-8',
-                'X-Frame-Options': 'SAMEORIGIN',
-                'Content-Security-Policy': "frame-ancestors 'self'",
-                'Cache-Control': 'private, max-age=60',
-            },
+            headers: getProxyResponseHeaders(baseOrigin),
         });
     } catch (err) {
         console.error('Proxy fetch/sanitize error:', err);
@@ -172,4 +179,12 @@ export async function GET(request: NextRequest) {
         }
         return new Response('Failed to proxy provider', { status: 500 });
     }
+}
+
+export async function GET(request: NextRequest) {
+    return handleProxyRequest(request, true);
+}
+
+export async function HEAD(request: NextRequest) {
+    return handleProxyRequest(request, false);
 }

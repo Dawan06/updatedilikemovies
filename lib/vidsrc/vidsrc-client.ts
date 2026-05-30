@@ -40,34 +40,82 @@ const EMBED_PROVIDERS: EmbedProvider[] = [
   },
   {
     name: 'Server 5',
-    getMovieUrl: (id) => `https://player.smashy.stream/movie/${id}`,
-    getTVUrl: (id, s, e) => `https://player.smashy.stream/tv/${id}?s=${s}&e=${e}`,
+    getMovieUrl: (id) => `https://player.smashystream.com/movie/${id}`,
+    getTVUrl: (id, s, e) => `https://player.smashystream.com/tv/${id}?s=${s}&e=${e}`,
     priority: 5,
     quality: 'high',
   },
 ];
 
 export class VidsrcClient {
-  async getMovieSources(tmdbId: number): Promise<VideoSource[]> {
+  private buildSourceUrl(params: {
+    type: 'movie' | 'tv';
+    tmdbId: number;
+    provider: string;
+    season?: number;
+    episode?: number;
+    proxy?: boolean;
+    targetUrl: string;
+  }): string {
+    if (!params.proxy) {
+      return params.targetUrl;
+    }
+
+    const proxyUrl = new URL('/api/proxy', 'http://localhost');
+    proxyUrl.searchParams.set('type', params.type);
+    proxyUrl.searchParams.set('id', String(params.tmdbId));
+    proxyUrl.searchParams.set('provider', params.provider);
+
+    if (params.type === 'tv' && params.season && params.episode) {
+      proxyUrl.searchParams.set('s', String(params.season));
+      proxyUrl.searchParams.set('e', String(params.episode));
+    }
+
+    return `${proxyUrl.pathname}${proxyUrl.search}`;
+  }
+
+  async getMovieSources(tmdbId: number, options?: { proxy?: boolean }): Promise<VideoSource[]> {
     // Create sources from all providers - client will test and sort by performance
-    const sources: VideoSource[] = EMBED_PROVIDERS.map((provider) => ({
-      url: provider.getMovieUrl(tmdbId),
-      quality: provider.quality === 'high' ? 'HD+' : provider.quality === 'medium' ? 'HD' : 'Auto',
-      type: 'iframe',
-      provider: provider.name,
-    }));
+    const sources: VideoSource[] = EMBED_PROVIDERS.map((provider) => {
+      const targetUrl = provider.getMovieUrl(tmdbId);
+
+      return {
+        url: this.buildSourceUrl({
+          type: 'movie',
+          tmdbId,
+          provider: provider.name,
+          proxy: options?.proxy,
+          targetUrl,
+        }),
+        quality: provider.quality === 'high' ? 'HD+' : provider.quality === 'medium' ? 'HD' : 'Auto',
+        type: 'iframe',
+        provider: provider.name,
+      };
+    });
 
     return sources;
   }
 
-  async getTVSources(tmdbId: number, season: number, episode: number): Promise<VideoSource[]> {
+  async getTVSources(tmdbId: number, season: number, episode: number, options?: { proxy?: boolean }): Promise<VideoSource[]> {
     // Create sources from all providers - client will test and sort by performance
-    const sources: VideoSource[] = EMBED_PROVIDERS.map((provider) => ({
-      url: provider.getTVUrl(tmdbId, season, episode),
-      quality: provider.quality === 'high' ? 'HD+' : provider.quality === 'medium' ? 'HD' : 'Auto',
-      type: 'iframe',
-      provider: provider.name,
-    }));
+    const sources: VideoSource[] = EMBED_PROVIDERS.map((provider) => {
+      const targetUrl = provider.getTVUrl(tmdbId, season, episode);
+
+      return {
+        url: this.buildSourceUrl({
+          type: 'tv',
+          tmdbId,
+          provider: provider.name,
+          season,
+          episode,
+          proxy: options?.proxy,
+          targetUrl,
+        }),
+        quality: provider.quality === 'high' ? 'HD+' : provider.quality === 'medium' ? 'HD' : 'Auto',
+        type: 'iframe',
+        provider: provider.name,
+      };
+    });
 
     return sources;
   }
