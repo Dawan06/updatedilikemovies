@@ -19,6 +19,7 @@ export default clerkMiddleware(
 export const config = {
   matcher: [
     // User-specific pages (require auth)
+    '/',
     '/my-list/:path*',
     '/import/:path*',
     '/settings/:path*',
